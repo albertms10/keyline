@@ -1,20 +1,26 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Interval, Key;
+import 'package:keyline/widgets/circle_of_fifths_screen.dart';
 
 void main() {
-  runApp(const App());
+  runApp(const CircleOfFifthsApp());
 }
 
-class App extends StatelessWidget {
-  const App({super.key});
+class CircleOfFifthsApp extends StatelessWidget {
+  const CircleOfFifthsApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: Text('Hello World!'),
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Keyline',
+      theme: ThemeData(
+        colorScheme: .fromSeed(
+          seedColor: const Color(0xff256f72),
         ),
+        scaffoldBackgroundColor: const Color(0xfff7f3ea),
+        useMaterial3: true,
       ),
+      home: const CircleOfFifthsScreen(),
     );
   }
 }
