@@ -39,6 +39,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
 
     _drawRings(canvas, center, outerRadius, innerRadius);
     _drawSpokes(canvas, center, outerRadius);
+    _drawKeyAnchors(canvas, center, outerRadius, innerRadius);
     _drawLabels(canvas, center, labelRadius, innerRadius);
     _drawVectors(canvas, center, outerRadius, innerRadius);
     _drawLegend(canvas, size);
@@ -76,6 +77,40 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
     }
   }
 
+  void _drawKeyAnchors(
+    Canvas canvas,
+    Offset center,
+    double outerRadius,
+    double innerRadius,
+  ) {
+    final majorPaint = Paint()
+      ..style = .fill
+      ..color = const Color(0xfffffcf5);
+    final majorStroke = Paint()
+      ..style = .stroke
+      ..strokeWidth = 2
+      ..color = const Color(0xff575148);
+    final minorPaint = Paint()
+      ..style = .fill
+      ..color = const Color(0xfffffcf5);
+    final minorStroke = Paint()
+      ..style = .stroke
+      ..strokeWidth = 1.75
+      ..color = const Color(0xff8a6d98);
+
+    for (final note in majorNotes) {
+      final angle = _angleFor(note);
+      final majorAnchor = center + _unit(angle) * outerRadius;
+      final minorAnchor = center + _unit(angle) * innerRadius;
+
+      canvas
+        ..drawCircle(majorAnchor, _majorAnchorRadius, majorPaint)
+        ..drawCircle(majorAnchor, _majorAnchorRadius, majorStroke)
+        ..drawCircle(minorAnchor, _minorAnchorRadius, minorPaint)
+        ..drawCircle(minorAnchor, _minorAnchorRadius, minorStroke);
+    }
+  }
+
   void _drawLabels(
     Canvas canvas,
     Offset center,
@@ -93,9 +128,10 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
         center + _unit(angle) * outerLabelRadius,
         const TextStyle(
           color: Color(0xff222826),
-          fontSize: 16,
+          fontSize: 15,
           fontWeight: .w700,
         ),
+        backgroundColor: const Color(0xf2fffcf5),
       );
       _drawText(
         canvas,
@@ -106,6 +142,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
           fontSize: 13,
           fontWeight: .w600,
         ),
+        backgroundColor: const Color(0xf2fffcf5),
       );
     }
   }
@@ -116,17 +153,19 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
     double outerRadius,
     double innerRadius,
   ) {
-    for (final vector in vectors) {
-      final start = _pointForKey(vector.from, center, outerRadius, innerRadius);
-      final end = _pointForKey(vector.to, center, outerRadius, innerRadius);
-      final sweep = vector.dashed ? -0.16 : 0.16;
-      final control =
-          Offset.lerp(start, end, 0.5)! +
-          _perpendicular(end - start) * (outerRadius * sweep);
+    final paths = [
+      for (final (index, vector) in vectors.indexed)
+        _vectorPathFor(
+          vector,
+          index,
+          center,
+          outerRadius,
+          innerRadius,
+        ),
+    ];
 
-      final path = Path()
-        ..moveTo(start.dx, start.dy)
-        ..quadraticBezierTo(control.dx, control.dy, end.dx, end.dy);
+    for (final vectorPath in paths) {
+      final vector = vectorPath.vector;
       final paint = Paint()
         ..style = .stroke
         ..strokeWidth = 3
@@ -134,13 +173,21 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
         ..color = vector.color;
 
       if (vector.dashed) {
-        _drawDashedPath(canvas, path, paint);
+        _drawDashedPath(canvas, vectorPath.path, paint);
       } else {
-        canvas.drawPath(path, paint);
+        canvas.drawPath(vectorPath.path, paint);
       }
 
-      _drawArrowHead(canvas, path, vector.color);
-      _drawVectorLabel(canvas, vector.label, control, vector.color);
+      _drawArrowHead(canvas, vectorPath);
+    }
+
+    for (final vectorPath in paths) {
+      _drawVectorLabel(
+        canvas,
+        vectorPath.vector.label,
+        vectorPath.labelPosition,
+        vectorPath.vector.color,
+      );
     }
   }
 
@@ -190,9 +237,66 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
   ) {
     final matchingMajor = key.mode == .major ? key : key.relative;
     final angle = _angleFor(matchingMajor.note);
-    final radius = key.mode == .major ? outerRadius * 0.86 : innerRadius;
+    final radius = key.mode == .major ? outerRadius : innerRadius;
 
     return center + _unit(angle) * radius;
+  }
+
+  _VectorPath _vectorPathFor(
+    ModulationVector vector,
+    int index,
+    Offset center,
+    double outerRadius,
+    double innerRadius,
+  ) {
+    final startAnchor = _pointForKey(
+      vector.from,
+      center,
+      outerRadius,
+      innerRadius,
+    );
+    final endAnchor = _pointForKey(vector.to, center, outerRadius, innerRadius);
+    final anchorDelta = endAnchor - startAnchor;
+    final unitDelta = _normalized(anchorDelta);
+    final startRadius = _anchorRadiusFor(vector.from);
+    final endRadius = _anchorRadiusFor(vector.to);
+    final start = startAnchor + unitDelta * (startRadius + 3);
+    final tip = endAnchor - unitDelta * (endRadius + 7);
+    final terminalDirection = _normalized(tip - start);
+    final shaftEnd = tip - terminalDirection * _arrowLength * 0.72;
+    final end = shaftEnd;
+    final chord = end - start;
+    final curveSide = vector.dashed ? -1.0 : 1.0;
+    final modeLane = vector.from.mode == vector.to.mode ? 0.18 : 0.34;
+    final lane = (modeLane + index * 0.035) * curveSide;
+    final routeControl = Offset.lerp(start, tip, 0.5)! +
+        _perpendicular(chord) * outerRadius * lane;
+    final startControl = Offset.lerp(start, routeControl, 0.66)!;
+    final endControl =
+        end - terminalDirection * math.max(chord.distance * 0.24, 24);
+    final path = Path()
+      ..moveTo(start.dx, start.dy)
+      ..cubicTo(
+        startControl.dx,
+        startControl.dy,
+        endControl.dx,
+        endControl.dy,
+        end.dx,
+        end.dy,
+      );
+    final labelPosition = Offset.lerp(
+      _cubicPoint(start, startControl, endControl, end, 0.5),
+      routeControl,
+      0.18,
+    )!;
+
+    return _VectorPath(
+      vector: vector,
+      path: path,
+      labelPosition: labelPosition,
+      tip: tip,
+      terminalDirection: terminalDirection,
+    );
   }
 
   void _drawVectorLabel(
@@ -206,58 +310,59 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
         text: label,
         style: TextStyle(
           color: color,
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: .w700,
         ),
       ),
       textAlign: .center,
       textDirection: .ltr,
-    )..layout(maxWidth: 96);
+    )..layout(maxWidth: 132);
     final rect = Rect.fromCenter(
       center: position,
-      width: labelPainter.width + 10,
-      height: labelPainter.height + 6,
+      width: labelPainter.width + 14,
+      height: labelPainter.height + 8,
     );
     final background = Paint()..color = const Color(0xeafffcf5);
+    final border = Paint()
+      ..style = .stroke
+      ..strokeWidth = 1
+      ..color = color.withValues(alpha: 0.42);
 
-    canvas.drawRRect(
-      .fromRectAndRadius(rect, const .circular(6)),
-      background,
-    );
+    canvas
+      ..drawRRect(
+        .fromRectAndRadius(rect, const .circular(6)),
+        background,
+      )
+      ..drawRRect(
+        .fromRectAndRadius(rect, const .circular(6)),
+        border,
+      );
     labelPainter.paint(
       canvas,
       rect.center - Offset(labelPainter.width / 2, labelPainter.height / 2),
     );
   }
 
-  void _drawArrowHead(Canvas canvas, Path path, Color color) {
-    final metric = path.computeMetrics().last;
-    final tangent = metric.getTangentForOffset(metric.length * 0.98);
-    if (tangent == null) return;
+  void _drawArrowHead(Canvas canvas, _VectorPath vectorPath) {
+    final direction = vectorPath.terminalDirection;
+    if (direction == .zero) return;
 
-    const arrowLength = 13.0;
-    const arrowAngle = math.pi / 7;
-    final direction = tangent.angle;
-    final point = tangent.position;
+    final normal = _perpendicular(direction);
+    final tip = vectorPath.tip;
+    final baseCenter = tip - direction * _arrowLength;
+    final left = baseCenter + normal * _arrowHalfWidth;
+    final right = baseCenter - normal * _arrowHalfWidth;
     final arrowPath = Path()
-      ..moveTo(point.dx, point.dy)
-      ..lineTo(
-        point.dx - arrowLength * math.cos(direction - arrowAngle),
-        point.dy - arrowLength * math.sin(direction - arrowAngle),
-      )
-      ..moveTo(point.dx, point.dy)
-      ..lineTo(
-        point.dx - arrowLength * math.cos(direction + arrowAngle),
-        point.dy - arrowLength * math.sin(direction + arrowAngle),
-      );
+      ..moveTo(tip.dx, tip.dy)
+      ..lineTo(left.dx, left.dy)
+      ..lineTo(right.dx, right.dy)
+      ..close();
 
     canvas.drawPath(
       arrowPath,
       Paint()
-        ..style = .stroke
-        ..strokeWidth = 3
-        ..strokeCap = .round
-        ..color = color,
+        ..style = .fill
+        ..color = vectorPath.vector.color,
     );
   }
 
@@ -279,17 +384,30 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
     String text,
     Offset center,
     TextStyle style,
-  ) {
+    {
+    Color? backgroundColor,
+  }) {
     final painter = TextPainter(
       text: TextSpan(text: text, style: style),
       textAlign: .center,
       textDirection: .ltr,
     )..layout(maxWidth: 120);
+    final offset = center - Offset(painter.width / 2, painter.height / 2);
 
-    painter.paint(
-      canvas,
-      center - Offset(painter.width / 2, painter.height / 2),
-    );
+    if (backgroundColor != null) {
+      final rect = Rect.fromLTWH(
+        offset.dx - 5,
+        offset.dy - 3,
+        painter.width + 10,
+        painter.height + 6,
+      );
+      canvas.drawRRect(
+        .fromRectAndRadius(rect, const .circular(5)),
+        Paint()..color = backgroundColor,
+      );
+    }
+
+    painter.paint(canvas, offset);
   }
 
   double _angleFor(Note note) =>
@@ -304,7 +422,53 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
     return Offset(-offset.dy / length, offset.dx / length);
   }
 
+  Offset _normalized(Offset offset) {
+    final length = offset.distance;
+    if (length == 0) return .zero;
+
+    return offset / length;
+  }
+
+  Offset _cubicPoint(
+    Offset start,
+    Offset control1,
+    Offset control2,
+    Offset end,
+    double t,
+  ) {
+    final inverse = 1 - t;
+
+    return start * inverse * inverse * inverse +
+        control1 * 3 * inverse * inverse * t +
+        control2 * 3 * inverse * t * t +
+        end * t * t * t;
+  }
+
+  double _anchorRadiusFor(Key key) =>
+      key.mode == .major ? _majorAnchorRadius : _minorAnchorRadius;
+
   @override
   bool shouldRepaint(_CircleOfFifthsCustomPainter oldDelegate) =>
       oldDelegate.vectors != vectors;
 }
+
+class _VectorPath {
+  const _VectorPath({
+    required this.vector,
+    required this.path,
+    required this.labelPosition,
+    required this.tip,
+    required this.terminalDirection,
+  });
+
+  final ModulationVector vector;
+  final Path path;
+  final Offset labelPosition;
+  final Offset tip;
+  final Offset terminalDirection;
+}
+
+const _arrowLength = 14.0;
+const _arrowHalfWidth = 6.0;
+const _majorAnchorRadius = 6.5;
+const _minorAnchorRadius = 5.25;
