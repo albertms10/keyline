@@ -9,7 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  music_notes: ^0.25.0
+  music_notes: ^0.26.0
 
 dev_dependencies:
   flutter_test:

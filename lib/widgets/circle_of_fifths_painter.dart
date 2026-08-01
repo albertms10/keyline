@@ -124,7 +124,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
 
       _drawText(
         canvas,
-        majorKey.format(),
+        majorKey.format(const GermanKeyNotation()),
         center + _unit(angle) * outerLabelRadius,
         const TextStyle(
           color: Color(0xff222826),
@@ -135,7 +135,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
       );
       _drawText(
         canvas,
-        minorKey.format(),
+        minorKey.format(const GermanKeyNotation()),
         center + _unit(angle) * innerLabelRadius,
         const TextStyle(
           color: Color(0xff6a4c7b),
@@ -269,7 +269,8 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
     final curveSide = vector.dashed ? -1.0 : 1.0;
     final modeLane = vector.from.mode == vector.to.mode ? 0.18 : 0.34;
     final lane = (modeLane + index * 0.035) * curveSide;
-    final routeControl = Offset.lerp(start, tip, 0.5)! +
+    final routeControl =
+        Offset.lerp(start, tip, 0.5)! +
         _perpendicular(chord) * outerRadius * lane;
     final startControl = Offset.lerp(start, routeControl, 0.66)!;
     final endControl =
@@ -383,8 +384,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
     Canvas canvas,
     String text,
     Offset center,
-    TextStyle style,
-    {
+    TextStyle style, {
     Color? backgroundColor,
   }) {
     final painter = TextPainter(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart' show Color;
 import 'package:keyline/colors.dart';
 import 'package:music_notes/music_notes.dart';
+import 'package:music_notes/utils.dart';
 
 /// A directed modulation between two tonal keys.
 class ModulationVector {
@@ -29,7 +30,7 @@ class ModulationVector {
 
   /// The vector label.
   String get label =>
-      '${to.signature.distance! - from.signature.distance!} fifths';
+      (to.signature.distance! - from.signature.distance!).toDeltaString();
 }
 
 extension KeyModulationVector on Key {

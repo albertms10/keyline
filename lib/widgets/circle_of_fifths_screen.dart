@@ -11,11 +11,11 @@ class CircleOfFifthsScreen extends StatefulWidget {
 }
 
 class _CircleOfFifthsScreenState extends State<CircleOfFifthsScreen> {
-  List<ModulationVector> vectors = [
+  final List<ModulationVector> _vectors = [
     Note.c.major.to(Note.e.minor),
     Note.e.minor.to(Note.f.minor),
     Note.f.minor.to(Note.g.flat.major),
-    Note.g.flat.major.to(Note.b.major),
+    Note.g.flat.major.to(Note.c.flat.major),
   ];
 
   @override
@@ -24,7 +24,7 @@ class _CircleOfFifthsScreenState extends State<CircleOfFifthsScreen> {
       body: SafeArea(
         child: Padding(
           padding: const .all(20),
-          child: CircleOfFifthsPainter(vectors: vectors),
+          child: CircleOfFifthsPainter(vectors: _vectors),
         ),
       ),
     );

@@ -111,10 +111,10 @@ packages:
     dependency: "direct main"
     description:
       name: music_notes
-      sha256: "41d29c4900d7592e91c95c4dea0f2e75cc46d30f94719ba33f7c9abb0c125cbf"
+      sha256: a9d9e28ba05930d4fecc250a74c71d2c7059b0a5c81e45ea8761f1f75c8d3cb1
       url: "https://pub.dev"
     source: hosted
-    version: "0.25.0"
+    version: "0.26.0"
   path:
     dependency: transitive
     description:
@@ -123,14 +123,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.9.1"
-  petitparser:
-    dependency: transitive
-    description:
-      name: petitparser
-      sha256: "91bd59303e9f769f108f8df05e371341b15d59e995e6806aefab827b58336675"
-      url: "https://pub.dev"
-    source: hosted
-    version: "7.0.2"
   sky_engine:
     dependency: transitive
     description: flutter
@@ -208,14 +200,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "15.2.0"
-  xml:
-    dependency: transitive
-    description:
-      name: xml
-      sha256: "971043b3a0d3da28727e40ed3e0b5d18b742fa5a68665cca88e74b7876d5e025"
-      url: "https://pub.dev"
-    source: hosted
-    version: "6.6.1"
 sdks:
   dart: ">=3.10.9 <4.0.0"
   flutter: ">=3.18.0-18.0.pre.54"
