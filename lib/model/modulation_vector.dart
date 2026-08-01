@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart' show Color;
+import 'package:keyline/colors.dart';
 import 'package:music_notes/music_notes.dart';
 
 /// A directed modulation between two tonal keys.
@@ -7,9 +8,6 @@ class ModulationVector {
   const ModulationVector({
     required this.from,
     required this.to,
-    required this.color,
-    required this.dashed,
-    required this.label,
   });
 
   /// The source key.
@@ -19,11 +17,22 @@ class ModulationVector {
   final Key to;
 
   /// The rendered arrow color.
-  final Color color;
+  Color get color => switch ((from.mode, to.mode)) {
+    (.major, .minor) => majorToMinorColor,
+    (.minor, .major) => minorToMajorColor,
+    (.major, .major) => majorToMajorColor,
+    (.minor, .minor) => minorToMinorColor,
+  };
 
   /// Whether this vector is rendered as a dashed arrow.
-  final bool dashed;
+  bool get dashed => to.signature.distance! - from.signature.distance! < 0;
 
   /// The vector label.
-  final String label;
+  String get label =>
+      '${to.signature.distance! - from.signature.distance!} fifths';
+}
+
+extension KeyModulationVector on Key {
+  ModulationVector to(Key targetKey) =>
+      ModulationVector(from: this, to: targetKey);
 }
