@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:keyline/widgets/circle_of_fifths_painter.dart';
+import 'package:keyline/widgets/screenshot_utils.dart';
 
 void main() {
   group('compute3dVectorElevation', () {
@@ -32,5 +33,14 @@ void main() {
 
       expect(second, greaterThan(first));
     });
+  });
+
+  test('builds a safe capture filename', () {
+    final timestamp = DateTime.utc(2026, 8, 3, 12, 34, 56, 789);
+
+    expect(
+      buildCaptureFilename(timestamp),
+      'keyline-chart-2026-08-03T12-34-56-789Z.png',
+    );
   });
 }

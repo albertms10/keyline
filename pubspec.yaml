@@ -13,6 +13,7 @@ dependencies:
     git:
       url: https://github.com/albertms10/music_notes.git
       ref: main
+  path_provider: ^2.1.6
   web: ^1.1.1
 
 dev_dependencies:

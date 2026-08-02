@@ -4,6 +4,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide Interval, Key;
 import 'package:keyline/model.dart';
 import 'package:keyline/widgets/circle_of_fifths_painter.dart';
+import 'package:keyline/widgets/screenshot_utils.dart';
 import 'package:keyline/widgets/settings_modal.dart';
 import 'package:music_notes/music_notes.dart';
 
@@ -57,6 +58,7 @@ class _CircleOfFifthsScreenState extends State<CircleOfFifthsScreen>
       .new(const GermanKeyNotation());
   late final ValueNotifier<VisualizationDisplayOptions>
   _displayOptionsNotifier = .new(const VisualizationDisplayOptions());
+  final GlobalKey _chartCaptureKey = GlobalKey();
   Offset _viewPan = .zero;
   double _rotationX = -0.82;
   double _rotationY = 0.22;
@@ -133,6 +135,26 @@ class _CircleOfFifthsScreenState extends State<CircleOfFifthsScreen>
     );
   }
 
+  Future<void> _captureChart() async {
+    final filePath = await captureWidgetToFile(
+      _chartCaptureKey,
+      filename: buildCaptureFilename(),
+    );
+
+    if (!mounted) return;
+
+    if (filePath == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to save chart capture.')),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Saved chart capture to $filePath')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -166,51 +188,58 @@ class _CircleOfFifthsScreenState extends State<CircleOfFifthsScreen>
               Expanded(
                 child: Stack(
                   children: [
-                    Listener(
-                      onPointerMove: _is3dMode
-                          ? (event) {
-                              setState(() {
-                                if (event.buttons
-                                    case kSecondaryMouseButton ||
-                                        kMiddleMouseButton) {
-                                  _viewPan += event.delta;
-                                } else {
-                                  _rotationY += event.delta.dx * 0.01;
-                                  _rotationX =
-                                      (_rotationX - event.delta.dy * 0.01)
-                                          .clamp(-1.25, -0.08);
-                                }
-                              });
-                            }
-                          : null,
-                      child: AnimatedBuilder(
-                        animation: .merge([_modeAnimation, _timelineAnimation]),
-                        builder: (context, _) {
-                          return ValueListenableBuilder<
-                            StringNotationSystem<Key>
-                          >(
-                            valueListenable: _notationSystemNotifier,
-                            builder: (context, notationSystem, _) {
-                              return ValueListenableBuilder(
-                                valueListenable: _displayOptionsNotifier,
-                                builder: (context, displayOptions, _) {
-                                  return CircleOfFifthsPainter(
-                                    vectors: _sequence.vectors,
-                                    timelineKeys: _sequence.keys,
-                                    visualizationMode: _visualizationMode,
-                                    depthProgress: _modeAnimation.value,
-                                    timelineProgress: _timelineAnimation.value,
-                                    viewPan: _viewPan,
-                                    rotationX: _rotationX,
-                                    rotationY: _rotationY,
-                                    notationSystem: notationSystem,
-                                    displayOptions: displayOptions,
-                                  );
-                                },
-                              );
-                            },
-                          );
-                        },
+                    RepaintBoundary(
+                      key: _chartCaptureKey,
+                      child: Listener(
+                        onPointerMove: _is3dMode
+                            ? (event) {
+                                setState(() {
+                                  if (event.buttons
+                                      case kSecondaryMouseButton ||
+                                          kMiddleMouseButton) {
+                                    _viewPan += event.delta;
+                                  } else {
+                                    _rotationY += event.delta.dx * 0.01;
+                                    _rotationX =
+                                        (_rotationX - event.delta.dy * 0.01)
+                                            .clamp(-1.25, -0.08);
+                                  }
+                                });
+                              }
+                            : null,
+                        child: AnimatedBuilder(
+                          animation: .merge([
+                            _modeAnimation,
+                            _timelineAnimation,
+                          ]),
+                          builder: (context, _) {
+                            return ValueListenableBuilder<
+                              StringNotationSystem<Key>
+                            >(
+                              valueListenable: _notationSystemNotifier,
+                              builder: (context, notationSystem, _) {
+                                return ValueListenableBuilder(
+                                  valueListenable: _displayOptionsNotifier,
+                                  builder: (context, displayOptions, _) {
+                                    return CircleOfFifthsPainter(
+                                      vectors: _sequence.vectors,
+                                      timelineKeys: _sequence.keys,
+                                      visualizationMode: _visualizationMode,
+                                      depthProgress: _modeAnimation.value,
+                                      timelineProgress:
+                                          _timelineAnimation.value,
+                                      viewPan: _viewPan,
+                                      rotationX: _rotationX,
+                                      rotationY: _rotationY,
+                                      notationSystem: notationSystem,
+                                      displayOptions: displayOptions,
+                                    );
+                                  },
+                                );
+                              },
+                            );
+                          },
+                        ),
                       ),
                     ),
                     Positioned(
@@ -228,9 +257,9 @@ class _CircleOfFifthsScreenState extends State<CircleOfFifthsScreen>
                           mainAxisSize: .min,
                           children: [
                             IconButton(
-                              onPressed: _showSettingsModal,
-                              icon: const Icon(Icons.settings_outlined),
-                              tooltip: 'Settings',
+                              onPressed: _captureChart,
+                              icon: const Icon(Icons.photo_camera_outlined),
+                              tooltip: 'Save chart capture',
                               padding: .zero,
                               visualDensity: .compact,
                             ),
@@ -268,6 +297,17 @@ class _CircleOfFifthsScreenState extends State<CircleOfFifthsScreen>
                               onSelectionChanged: (selection) async {
                                 await _setVisualizationMode(selection.single);
                               },
+                            ),
+                            const SizedBox(
+                              height: 22,
+                              child: VerticalDivider(thickness: 1.5, width: 20),
+                            ),
+                            IconButton(
+                              onPressed: _showSettingsModal,
+                              icon: const Icon(Icons.settings_outlined),
+                              tooltip: 'Settings',
+                              padding: .zero,
+                              visualDensity: .compact,
                             ),
                           ],
                         ),
