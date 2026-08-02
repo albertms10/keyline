@@ -71,9 +71,7 @@ class _CircleOfFifthsScreenState extends State<CircleOfFifthsScreen>
 
   static TimedKey _parseTimedKey(String token) {
     final separatorIndex = token.lastIndexOf(RegExp('[:=]'));
-    if (separatorIndex < 0) {
-      return TimedKey(key: Key.parse(token));
-    }
+    if (separatorIndex < 0) return TimedKey(key: Key.parse(token));
 
     final duration = double.parse(token.substring(separatorIndex + 1));
     if (duration <= 0) {
@@ -185,10 +183,7 @@ class _CircleOfFifthsScreenState extends State<CircleOfFifthsScreen>
                             }
                           : null,
                       child: AnimatedBuilder(
-                        animation: Listenable.merge([
-                          _modeAnimation,
-                          _timelineAnimation,
-                        ]),
+                        animation: .merge([_modeAnimation, _timelineAnimation]),
                         builder: (context, _) {
                           return ValueListenableBuilder<
                             StringNotationSystem<Key>
@@ -239,25 +234,25 @@ class _CircleOfFifthsScreenState extends State<CircleOfFifthsScreen>
                             SegmentedButton<VisualizationMode>(
                               showSelectedIcon: false,
                               style: const ButtonStyle(
-                                visualDensity: VisualDensity.compact,
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                visualDensity: .compact,
+                                tapTargetSize: .shrinkWrap,
                                 padding: WidgetStatePropertyAll<EdgeInsets>(
-                                  EdgeInsets.symmetric(horizontal: 10),
+                                  .symmetric(horizontal: 10),
                                 ),
                               ),
                               segments: const [
                                 ButtonSegment(
-                                  value: VisualizationMode.circle3d,
+                                  value: .circle3d,
                                   icon: Icon(Icons.view_in_ar_outlined),
                                   tooltip: 'Circle 3D',
                                 ),
                                 ButtonSegment(
-                                  value: VisualizationMode.circle2d,
+                                  value: .circle2d,
                                   icon: Icon(Icons.radio_button_checked),
                                   tooltip: 'Circle 2D',
                                 ),
                                 ButtonSegment(
-                                  value: VisualizationMode.timeline,
+                                  value: .timeline,
                                   icon: Icon(Icons.timeline),
                                   tooltip: 'Timeline',
                                 ),
