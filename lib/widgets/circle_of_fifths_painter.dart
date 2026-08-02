@@ -196,7 +196,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
     const textStyle = TextStyle(
       color: Color(0xff3c3a35),
       fontSize: 12,
-      fontWeight: FontWeight.w600,
+      fontWeight: .w600,
     );
     final upPaint = Paint()
       ..style = .stroke

@@ -110,10 +110,11 @@ packages:
   music_notes:
     dependency: "direct main"
     description:
-      name: music_notes
-      sha256: a9d9e28ba05930d4fecc250a74c71d2c7059b0a5c81e45ea8761f1f75c8d3cb1
-      url: "https://pub.dev"
-    source: hosted
+      path: "."
+      ref: "52e75ac9ae815ffb05e70b7d79a982a00c93dc84"
+      resolved-ref: "52e75ac9ae815ffb05e70b7d79a982a00c93dc84"
+      url: "https://github.com/albertms10/music_notes.git"
+    source: git
     version: "0.26.0"
   path:
     dependency: transitive
@@ -200,6 +201,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "15.2.0"
+  web:
+    dependency: "direct main"
+    description:
+      name: web
+      sha256: "868d88a33d8a87b18ffc05f9f030ba328ffefba92d6c127917a2ba740f9cfe4a"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.1.1"
 sdks:
   dart: ">=3.10.9 <4.0.0"
   flutter: ">=3.18.0-18.0.pre.54"

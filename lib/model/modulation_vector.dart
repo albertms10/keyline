@@ -37,3 +37,9 @@ extension KeyModulationVector on Key {
   ModulationVector to(Key targetKey) =>
       ModulationVector(from: this, to: targetKey);
 }
+
+extension KeyList on List<Key> {
+  List<ModulationVector> toModulationVectors() => [
+    for (int i = 0; i < length - 1; i++) this[i].to(this[i + 1]),
+  ];
+}
