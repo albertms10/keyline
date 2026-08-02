@@ -1,6 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide Interval, Key;
-import 'package:keyline/model/modulation_vector.dart';
+import 'package:keyline/model.dart';
 import 'package:keyline/widgets/circle_of_fifths_painter.dart';
 import 'package:keyline/widgets/settings_modal.dart';
 import 'package:music_notes/music_notes.dart';
