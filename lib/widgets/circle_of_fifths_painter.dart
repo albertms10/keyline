@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart' hide Interval, Key;
 import 'package:keyline/colors.dart';
 import 'package:keyline/model.dart';
-import 'package:keyline/utils/music.dart';
 import 'package:music_notes/music_notes.dart' hide Size;
 
 /// Draws a two-ring circle-of-fifths chart with modulation arrows.
@@ -49,7 +48,7 @@ class CircleOfFifthsPainter extends StatelessWidget {
 }
 
 class _CircleOfFifthsCustomPainter extends CustomPainter {
-  _CircleOfFifthsCustomPainter({
+  const _CircleOfFifthsCustomPainter({
     required this.vectors,
     required this.depthProgress,
     required this.rotationX,
@@ -62,7 +61,18 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
   final double rotationX;
   final double rotationY;
   final Offset viewPan;
-  final List<Note> majorNotes = majorRingNotes();
+
+  static final List<Note> majorRingNotes = _majorRingNotes();
+
+  static List<Note> _majorRingNotes() {
+    final byPitchClass = <PitchClass, Note>{};
+
+    for (final note in Note.c.circleOfFifths()) {
+      byPitchClass.putIfAbsent(note.toClass(), () => note);
+    }
+
+    return byPitchClass.values.toList(growable: false);
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -146,7 +156,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
       ..style = .stroke
       ..strokeWidth = 1
       ..color = const Color(0xffdfd7c7);
-    for (final note in majorNotes) {
+    for (final note in majorRingNotes) {
       final angle = _angleFor(note);
       canvas.drawLine(
         projection.project(center, 0),
@@ -219,7 +229,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
       ..strokeWidth = 1.75
       ..color = const Color(0xff8a6d98);
 
-    for (final note in majorNotes) {
+    for (final note in majorRingNotes) {
       final angle = _angleFor(note);
       final majorAnchor = projection.project(
         center + _unit(angle) * outerRadius,
@@ -245,7 +255,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
     double outerLabelRadius,
     double innerLabelRadius,
   ) {
-    for (final note in majorNotes) {
+    for (final note in majorRingNotes) {
       final majorKey = note.major.signature.keys[TonalMode.major]!;
       final minorKey = majorKey.signature.keys[TonalMode.minor]!;
       final angle = _angleFor(note);
@@ -301,7 +311,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
       ..strokeWidth = 1
       ..color = const Color(0xffdfd7c7);
 
-    for (final note in majorNotes) {
+    for (final note in majorRingNotes) {
       final angle = _angleFor(note);
       canvas.drawLine(center, center + _unit(angle) * radius, spokePaint);
     }
@@ -328,7 +338,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
       ..strokeWidth = 1.75
       ..color = const Color(0xff8a6d98);
 
-    for (final note in majorNotes) {
+    for (final note in majorRingNotes) {
       final angle = _angleFor(note);
       final majorAnchor = center + _unit(angle) * outerRadius;
       final minorAnchor = center + _unit(angle) * innerRadius;
@@ -347,7 +357,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
     double outerLabelRadius,
     double innerLabelRadius,
   ) {
-    for (final note in majorNotes) {
+    for (final note in majorRingNotes) {
       final majorKey = note.major.signature.keys[TonalMode.major]!;
       final minorKey = majorKey.signature.keys[TonalMode.minor]!;
       final angle = _angleFor(note);
