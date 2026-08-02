@@ -1203,9 +1203,19 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
           innerRadius,
         ),
     ];
+    final maxDuration = vectors.isEmpty
+        ? 1.0
+        : vectors.fold<double>(
+            0,
+            (max, vector) => math.max(max, vector.duration),
+          );
 
     for (final (index, vectorPath) in paths.indexed) {
-      final elevation = _elevationFor(index);
+      final elevation = compute3dVectorElevation(
+        duration: vectorPath.vector.duration,
+        maxDuration: maxDuration,
+        index: index,
+      );
       final shadowPath = _projectVectorPath(projection, vectorPath, 0);
       final shadowPaint = Paint()
         ..style = .stroke
@@ -1227,7 +1237,11 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
 
     for (final (index, vectorPath) in paths.indexed) {
       final vector = vectorPath.vector;
-      final elevation = _elevationFor(index);
+      final elevation = compute3dVectorElevation(
+        duration: vectorPath.vector.duration,
+        maxDuration: maxDuration,
+        index: index,
+      );
       final path = _projectVectorPath(projection, vectorPath, elevation);
       final paint = Paint()
         ..style = .stroke
@@ -1249,7 +1263,14 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
         _drawVectorLabel(
           canvas,
           vectorPath.vector.label,
-          projection.project(vectorPath.labelPosition, _elevationFor(index)),
+          projection.project(
+            vectorPath.labelPosition,
+            compute3dVectorElevation(
+              duration: vectorPath.vector.duration,
+              maxDuration: maxDuration,
+              index: index,
+            ),
+          ),
           vectorPath.vector.colorFor(palette),
         );
       }
@@ -1587,8 +1608,6 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
   double _anchorRadiusFor(Key key) =>
       key.mode == .major ? _majorAnchorRadius : _minorAnchorRadius;
 
-  double _elevationFor(int index) => 30 + index * 22;
-
   @override
   bool shouldRepaint(_CircleOfFifthsCustomPainter oldDelegate) =>
       oldDelegate.vectors != vectors ||
@@ -1685,6 +1704,19 @@ class _Projection {
 
     return center + Offset(x1 * perspective, y2 * perspective) + pan * progress;
   }
+}
+
+double compute3dVectorElevation({
+  required double duration,
+  required double maxDuration,
+  required int index,
+}) {
+  final normalizedDuration = (duration / math.max(1.0, maxDuration)).clamp(
+    0.0,
+    1.0,
+  );
+
+  return 24 + index * 32 + normalizedDuration * 28;
 }
 
 const _arrowLength = 14.0;
