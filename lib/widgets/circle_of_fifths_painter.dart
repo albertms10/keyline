@@ -34,6 +34,8 @@ class CircleOfFifthsPainter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = Theme.of(context).extension<KeylineColors>() ?? .light;
+
     return CustomPaint(
       painter: _CircleOfFifthsCustomPainter(
         vectors: vectors,
@@ -41,6 +43,7 @@ class CircleOfFifthsPainter extends StatelessWidget {
         rotationX: rotationX,
         rotationY: rotationY,
         viewPan: viewPan,
+        palette: palette,
       ),
       child: const SizedBox.expand(),
     );
@@ -54,6 +57,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
     required this.rotationX,
     required this.rotationY,
     required this.viewPan,
+    required this.palette,
   });
 
   final List<ModulationVector> vectors;
@@ -61,6 +65,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
   final double rotationX;
   final double rotationY;
   final Offset viewPan;
+  final KeylineColors palette;
 
   static final List<Note> majorRingNotes = _majorRingNotes();
 
@@ -123,8 +128,8 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
     final surfacePaint = Paint()
       ..style = .fill
       ..color = .lerp(
-        const Color(0x00fffcf5),
-        const Color(0x56fffcf5),
+        palette.surface.withValues(alpha: 0),
+        palette.surface.withValues(alpha: 0.34),
         depthProgress,
       )!;
     final surfacePath = _projectCirclePath(projection, center, outerRadius, 0);
@@ -139,7 +144,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
       Paint()
         ..style = .stroke
         ..strokeWidth = 2
-        ..color = const Color(0xff7d786c),
+        ..color = palette.chartRing,
     );
     _drawProjectedCircle(
       canvas,
@@ -149,7 +154,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
       Paint()
         ..style = .stroke
         ..strokeWidth = 1.5
-        ..color = const Color(0xffb9ad96),
+        ..color = palette.chartInnerRing,
     );
 
     final spokePaint = Paint()
@@ -294,11 +299,11 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
     final ringPaint = Paint()
       ..style = .stroke
       ..strokeWidth = 2
-      ..color = const Color(0xff7d786c);
+      ..color = palette.chartRing;
     final innerPaint = Paint()
       ..style = .stroke
       ..strokeWidth = 1.5
-      ..color = const Color(0xffb9ad96);
+      ..color = palette.chartInnerRing;
 
     canvas
       ..drawCircle(center, outerRadius, ringPaint)
@@ -410,7 +415,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
         ..style = .stroke
         ..strokeWidth = 3
         ..strokeCap = .round
-        ..color = vector.color;
+        ..color = vector.colorFor(palette);
 
       if (vector.dashed) {
         _drawDashedPath(canvas, vectorPath.path, paint);
@@ -426,7 +431,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
         canvas,
         vectorPath.vector.label,
         vectorPath.labelPosition,
-        vectorPath.vector.color,
+        vectorPath.vector.colorFor(palette),
       );
     }
   }
@@ -456,7 +461,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
         ..style = .stroke
         ..strokeWidth = 4
         ..strokeCap = .round
-        ..color = const Color(0xff3c3a35).withValues(
+        ..color = palette.legendText.withValues(
           alpha: 0.07 + depthProgress * 0.06,
         );
 
@@ -478,7 +483,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
         ..style = .stroke
         ..strokeWidth = 3.6
         ..strokeCap = .round
-        ..color = vector.color;
+        ..color = vector.colorFor(palette);
 
       if (vector.dashed) {
         _drawDashedPath(canvas, path, paint);
@@ -494,7 +499,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
         canvas,
         vectorPath.vector.label,
         projection.project(vectorPath.labelPosition, _elevationFor(index)),
-        vectorPath.vector.color,
+        vectorPath.vector.colorFor(palette),
       );
     }
   }
@@ -533,9 +538,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
       ..style = .stroke
       ..strokeWidth = 1.2
       ..strokeCap = .round
-      ..color = const Color(0xff8c8373).withValues(
-        alpha: 0.16 * depthProgress,
-      );
+      ..color = palette.chartInnerRing.withValues(alpha: 0.16 * depthProgress);
 
     canvas.drawLine(bottom, top, paint);
   }
@@ -568,14 +571,14 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
       arrowPath,
       Paint()
         ..style = .fill
-        ..color = vectorPath.vector.color,
+        ..color = vectorPath.vector.colorFor(palette),
     );
   }
 
   void _drawLegend(Canvas canvas, Size size) {
     const origin = Offset(18, 18);
-    const textStyle = TextStyle(
-      color: Color(0xff3c3a35),
+    final textStyle = TextStyle(
+      color: palette.legendText,
       fontSize: 12,
       fontWeight: .w600,
     );
@@ -583,12 +586,12 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
       ..style = .stroke
       ..strokeWidth = 3
       ..strokeCap = .round
-      ..color = majorToMinorColor;
+      ..color = palette.majorToMinor;
     final downPaint = Paint()
       ..style = .stroke
       ..strokeWidth = 3
       ..strokeCap = .round
-      ..color = minorToMajorColor;
+      ..color = palette.minorToMajor;
 
     canvas.drawLine(origin, origin + const Offset(34, 0), upPaint);
     _drawText(
@@ -708,7 +711,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
       width: labelPainter.width + 14,
       height: labelPainter.height + 8,
     );
-    final background = Paint()..color = const Color(0xeafffcf5);
+    final background = Paint()..color = palette.vectorLabelBackground;
     final border = Paint()
       ..style = .stroke
       ..strokeWidth = 1
@@ -748,7 +751,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
       arrowPath,
       Paint()
         ..style = .fill
-        ..color = vectorPath.vector.color,
+        ..color = vectorPath.vector.colorFor(palette),
     );
   }
 

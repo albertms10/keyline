@@ -5,9 +5,16 @@ import 'package:keyline/widgets/circle_of_fifths_painter.dart';
 import 'package:music_notes/music_notes.dart';
 
 class CircleOfFifthsScreen extends StatefulWidget {
-  const CircleOfFifthsScreen({super.key, this.initialVectors});
+  const CircleOfFifthsScreen({
+    required this.themeMode,
+    required this.onThemeModeChanged,
+    super.key,
+    this.initialVectors,
+  });
 
   final String? initialVectors;
+  final ThemeMode themeMode;
+  final ValueChanged<ThemeMode> onThemeModeChanged;
 
   @override
   State<CircleOfFifthsScreen> createState() => _CircleOfFifthsScreenState();
@@ -51,6 +58,53 @@ class _CircleOfFifthsScreenState extends State<CircleOfFifthsScreen>
     super.dispose();
   }
 
+  Future<void> _showSettingsModal() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        final isDark = widget.themeMode == .dark;
+
+        return SafeArea(
+          child: Padding(
+            padding: const .fromLTRB(20, 20, 20, 28),
+            child: Column(
+              mainAxisSize: .min,
+              crossAxisAlignment: .start,
+              children: [
+                Text(
+                  'Appearance',
+                  style: Theme.of(sheetContext).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Switch between light and dark modes.',
+                  style: Theme.of(sheetContext).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 12),
+                SwitchListTile(
+                  title: const Text('Dark mode'),
+                  value: isDark,
+                  onChanged: (value) {
+                    widget.onThemeModeChanged(value ? .dark : .light);
+                    Navigator.of(sheetContext).pop();
+                  },
+                  contentPadding: const EdgeInsetsDirectional.only(
+                    start: 16,
+                    end: 2,
+                  ),
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: .all(.circular(36)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -78,59 +132,96 @@ class _CircleOfFifthsScreenState extends State<CircleOfFifthsScreen>
                   });
                 },
               ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: .end,
-                children: [
-                  const Icon(Icons.view_in_ar_outlined, size: 20),
-                  const SizedBox(width: 8),
-                  const Text('3D mode'),
-                  const SizedBox(width: 8),
-                  Switch(
-                    value: _is3dMode,
-                    onChanged: (value) async {
-                      setState(() {
-                        _is3dMode = value;
-                      });
-                      if (value) {
-                        await _modeController.forward();
-                      } else {
-                        await _modeController.reverse();
-                      }
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 18),
               Expanded(
-                child: Listener(
-                  onPointerMove: _is3dMode
-                      ? (event) {
-                          setState(() {
-                            if (event.buttons == kSecondaryMouseButton ||
-                                event.buttons == kMiddleMouseButton) {
-                              _viewPan += event.delta;
-                            } else {
-                              _rotationY += event.delta.dx * 0.01;
-                              _rotationX = (_rotationX - event.delta.dy * 0.01)
-                                  .clamp(
-                                    -1.25,
-                                    -0.08,
-                                  );
+                child: Stack(
+                  children: [
+                    Listener(
+                      onPointerMove: _is3dMode
+                          ? (event) {
+                              setState(() {
+                                if (event.buttons
+                                    case kSecondaryMouseButton ||
+                                        kMiddleMouseButton) {
+                                  _viewPan += event.delta;
+                                } else {
+                                  _rotationY += event.delta.dx * 0.01;
+                                  _rotationX =
+                                      (_rotationX - event.delta.dy * 0.01)
+                                          .clamp(-1.25, -0.08);
+                                }
+                              });
                             }
-                          });
-                        }
-                      : null,
-                  child: AnimatedBuilder(
-                    animation: _modeAnimation,
-                    builder: (context, _) => CircleOfFifthsPainter(
-                      vectors: _vectors,
-                      depthProgress: _modeAnimation.value,
-                      viewPan: _viewPan,
-                      rotationX: _rotationX,
-                      rotationY: _rotationY,
+                          : null,
+                      child: AnimatedBuilder(
+                        animation: _modeAnimation,
+                        builder: (context, _) => CircleOfFifthsPainter(
+                          vectors: _vectors,
+                          depthProgress: _modeAnimation.value,
+                          viewPan: _viewPan,
+                          rotationX: _rotationX,
+                          rotationY: _rotationY,
+                        ),
+                      ),
                     ),
-                  ),
+                    Positioned(
+                      top: 12,
+                      right: 12,
+                      child: Container(
+                        padding: const .symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainerHighest,
+                          borderRadius: const .all(.circular(999)),
+                        ),
+                        child: Row(
+                          mainAxisSize: .min,
+                          children: [
+                            IconButton(
+                              onPressed: _showSettingsModal,
+                              icon: const Icon(Icons.settings_outlined),
+                              tooltip: 'Settings',
+                              padding: .zero,
+                              visualDensity: .compact,
+                            ),
+                            const SizedBox(
+                              height: 22,
+                              child: VerticalDivider(thickness: 1.5, width: 20),
+                            ),
+                            Tooltip(
+                              message: 'Toggle 3D mode',
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.view_in_ar_outlined,
+                                    size: 18,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  const Text('3D'),
+                                  const SizedBox(width: 6),
+                                  Switch(
+                                    value: _is3dMode,
+                                    onChanged: (value) async {
+                                      setState(() {
+                                        _is3dMode = value;
+                                      });
+                                      if (value) {
+                                        await _modeController.forward();
+                                      } else {
+                                        await _modeController.reverse();
+                                      }
+                                    },
+                                    materialTapTargetSize: .shrinkWrap,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],

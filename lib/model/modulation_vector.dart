@@ -18,11 +18,11 @@ class ModulationVector {
   final Key to;
 
   /// The rendered arrow color.
-  Color get color => switch ((from.mode, to.mode)) {
-    (.major, .minor) => majorToMinorColor,
-    (.minor, .major) => minorToMajorColor,
-    (.major, .major) => majorToMajorColor,
-    (.minor, .minor) => minorToMinorColor,
+  Color colorFor(KeylineColors colors) => switch ((from.mode, to.mode)) {
+    (.major, .minor) => colors.majorToMinor,
+    (.minor, .major) => colors.minorToMajor,
+    (.major, .major) => colors.majorToMajor,
+    (.minor, .minor) => colors.minorToMinor,
   };
 
   /// Whether this vector is rendered as a dashed arrow.
