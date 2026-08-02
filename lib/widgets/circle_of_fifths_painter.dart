@@ -119,21 +119,31 @@ class CircleOfFifthsPainter extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = Theme.of(context).extension<KeylineColors>() ?? .light;
 
-    return CustomPaint(
-      painter: _CircleOfFifthsCustomPainter(
-        vectors: vectors,
-        timelineKeys: timelineKeys,
-        visualizationMode: visualizationMode,
-        displayOptions: displayOptions,
-        depthProgress: depthProgress,
-        timelineProgress: timelineProgress,
-        rotationX: rotationX,
-        rotationY: rotationY,
-        viewPan: viewPan,
-        palette: palette,
-        notationSystem: notationSystem,
-      ),
-      child: const SizedBox.expand(),
+    return Stack(
+      children: [
+        CustomPaint(
+          painter: _CircleOfFifthsCustomPainter(
+            vectors: vectors,
+            timelineKeys: timelineKeys,
+            visualizationMode: visualizationMode,
+            displayOptions: displayOptions,
+            depthProgress: depthProgress,
+            timelineProgress: timelineProgress,
+            rotationX: rotationX,
+            rotationY: rotationY,
+            viewPan: viewPan,
+            palette: palette,
+            notationSystem: notationSystem,
+          ),
+          child: const SizedBox.expand(),
+        ),
+        if (displayOptions.showLegend)
+          Positioned(
+            left: 12,
+            top: 12,
+            child: _VectorLegend(palette: palette),
+          ),
+      ],
     );
   }
 }
@@ -225,10 +235,6 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
         labelRadius,
       );
       _drawVectors3d(canvas, projection, center, outerRadius, innerRadius);
-    }
-
-    if (displayOptions.showLegend) {
-      _drawLegend(canvas, size);
     }
   }
 
@@ -1348,44 +1354,6 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
     );
   }
 
-  void _drawLegend(Canvas canvas, Size size) {
-    const origin = Offset(18, 18);
-    final textStyle = TextStyle(
-      color: palette.legendText,
-      fontSize: 12,
-      fontWeight: .w600,
-    );
-    final upPaint = Paint()
-      ..style = .stroke
-      ..strokeWidth = 3
-      ..strokeCap = .round
-      ..color = palette.majorToMinor;
-    final downPaint = Paint()
-      ..style = .stroke
-      ..strokeWidth = 3
-      ..strokeCap = .round
-      ..color = palette.minorToMajor;
-
-    canvas.drawLine(origin, origin + const Offset(34, 0), upPaint);
-    _drawText(
-      canvas,
-      'solid: up a fifth',
-      origin + const Offset(104, 0),
-      textStyle,
-    );
-
-    final dashedPath = Path()
-      ..moveTo(origin.dx, origin.dy + 24)
-      ..lineTo(origin.dx + 34, origin.dy + 24);
-    _drawDashedPath(canvas, dashedPath, downPaint);
-    _drawText(
-      canvas,
-      'dashed: down a fifth',
-      origin + const Offset(112, 24),
-      textStyle,
-    );
-  }
-
   Offset _pointForKey(
     Key key,
     Offset center,
@@ -1619,6 +1587,165 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
       oldDelegate.rotationX != rotationX ||
       oldDelegate.rotationY != rotationY ||
       oldDelegate.viewPan != viewPan;
+}
+
+class _VectorLegend extends StatelessWidget {
+  const _VectorLegend({required this.palette});
+
+  final KeylineColors palette;
+
+  @override
+  Widget build(BuildContext context) {
+    final titleStyle =
+        Theme.of(context).textTheme.labelLarge?.copyWith(
+          color: palette.primaryText,
+          fontWeight: .w700,
+        ) ??
+        TextStyle(
+          color: palette.primaryText,
+          fontSize: 13,
+          fontWeight: .w700,
+        );
+    final labelStyle =
+        Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: palette.legendText,
+          fontWeight: .w600,
+        ) ??
+        TextStyle(
+          color: palette.legendText,
+          fontSize: 11.5,
+          fontWeight: .w600,
+        );
+
+    final entries = [
+      _LegendEntry(color: palette.majorToMajor, label: 'M → M'),
+      _LegendEntry(color: palette.minorToMinor, label: 'm → m'),
+      _LegendEntry(color: palette.majorToMinor, label: 'M → m'),
+      _LegendEntry(color: palette.minorToMajor, label: 'm → M'),
+    ];
+
+    Widget legendLine({
+      required Color color,
+      required String label,
+      bool dashed = false,
+    }) {
+      return Row(
+        mainAxisSize: .min,
+        children: [
+          SizedBox(
+            width: 34,
+            height: 12,
+            child: dashed
+                ? Row(
+                    children: [
+                      _LegendLineSegment(color: color),
+                      const SizedBox(width: 4),
+                      _LegendLineSegment(color: color),
+                      const SizedBox(width: 4),
+                      _LegendLineSegment(color: color),
+                    ],
+                  )
+                : Center(
+                    child: Container(
+                      height: 2,
+                      width: 30,
+                      decoration: BoxDecoration(
+                        color: color,
+                        borderRadius: .circular(999),
+                      ),
+                    ),
+                  ),
+          ),
+          const SizedBox(width: 8),
+          Text(label, style: labelStyle),
+        ],
+      );
+    }
+
+    return Container(
+      padding: const .fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        color: palette.vectorLabelBackground.withValues(alpha: 0.96),
+        borderRadius: const .all(.circular(16)),
+        border: .all(color: palette.chartRing.withValues(alpha: 0.34)),
+      ),
+      child: Column(
+        crossAxisAlignment: .start,
+        mainAxisSize: .min,
+        children: [
+          Text('tonal vectors', style: titleStyle),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 14,
+            runSpacing: 8,
+            children: [
+              for (final entry in entries)
+                Row(
+                  mainAxisSize: .min,
+                  children: [
+                    SizedBox(
+                      width: 34,
+                      height: 12,
+                      child: Center(
+                        child: Container(
+                          height: 2,
+                          width: 30,
+                          decoration: BoxDecoration(
+                            color: entry.color,
+                            borderRadius: const .all(.circular(999)),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(entry.label, style: labelStyle),
+                  ],
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Container(
+            height: 1,
+            width: 184,
+            color: palette.chartRing.withValues(alpha: 0.22),
+          ),
+          const SizedBox(height: 8),
+          legendLine(color: palette.chartRing, label: 'up a fifth'),
+          const SizedBox(height: 6),
+          legendLine(
+            color: palette.chartRing,
+            label: 'down a fifth',
+            dashed: true,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LegendLineSegment extends StatelessWidget {
+  const _LegendLineSegment({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 8,
+      height: 2,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: const .all(.circular(999)),
+      ),
+    );
+  }
+}
+
+class _LegendEntry {
+  const _LegendEntry({required this.color, required this.label});
+
+  final Color color;
+  final String label;
 }
 
 String _formatDuration(double value) {
