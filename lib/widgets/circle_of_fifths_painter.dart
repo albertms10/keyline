@@ -18,6 +18,56 @@ enum VisualizationMode {
   timeline,
 }
 
+/// User-controlled display toggles for chart annotations.
+class VisualizationDisplayOptions {
+  /// Creates display options for optional chart annotations.
+  const VisualizationDisplayOptions({
+    this.showMajorLabels = true,
+    this.showMinorLabels = true,
+    this.showVectorLabels = true,
+    this.showDurationLabels = true,
+    this.showGrid = true,
+    this.showLegend = true,
+  });
+
+  /// Whether major tonality labels are visible.
+  final bool showMajorLabels;
+
+  /// Whether minor tonality labels are visible.
+  final bool showMinorLabels;
+
+  /// Whether modulation interval labels are visible.
+  final bool showVectorLabels;
+
+  /// Whether timeline duration labels are visible.
+  final bool showDurationLabels;
+
+  /// Whether spokes/grid helper lines are visible.
+  final bool showGrid;
+
+  /// Whether the legend is visible.
+  final bool showLegend;
+
+  /// Returns a copy with selected fields replaced.
+  VisualizationDisplayOptions copyWith({
+    bool? showMajorLabels,
+    bool? showMinorLabels,
+    bool? showVectorLabels,
+    bool? showDurationLabels,
+    bool? showGrid,
+    bool? showLegend,
+  }) {
+    return VisualizationDisplayOptions(
+      showMajorLabels: showMajorLabels ?? this.showMajorLabels,
+      showMinorLabels: showMinorLabels ?? this.showMinorLabels,
+      showVectorLabels: showVectorLabels ?? this.showVectorLabels,
+      showDurationLabels: showDurationLabels ?? this.showDurationLabels,
+      showGrid: showGrid ?? this.showGrid,
+      showLegend: showLegend ?? this.showLegend,
+    );
+  }
+}
+
 /// Draws a two-ring circle-of-fifths chart with modulation arrows.
 class CircleOfFifthsPainter extends StatelessWidget {
   /// Creates a circle-of-fifths painter widget.
@@ -25,6 +75,7 @@ class CircleOfFifthsPainter extends StatelessWidget {
     required this.vectors,
     required this.timelineKeys,
     required this.visualizationMode,
+    required this.displayOptions,
     this.depthProgress = 0,
     this.timelineProgress = 0,
     this.rotationX = 0,
@@ -42,6 +93,9 @@ class CircleOfFifthsPainter extends StatelessWidget {
 
   /// The active visualization layout.
   final VisualizationMode visualizationMode;
+
+  /// Display toggles for optional labels and guide lines.
+  final VisualizationDisplayOptions displayOptions;
 
   /// Progress of the transition from flat paper to elevated 3D mode.
   final double depthProgress;
@@ -70,6 +124,7 @@ class CircleOfFifthsPainter extends StatelessWidget {
         vectors: vectors,
         timelineKeys: timelineKeys,
         visualizationMode: visualizationMode,
+        displayOptions: displayOptions,
         depthProgress: depthProgress,
         timelineProgress: timelineProgress,
         rotationX: rotationX,
@@ -88,6 +143,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
     required this.vectors,
     required this.timelineKeys,
     required this.visualizationMode,
+    required this.displayOptions,
     required this.depthProgress,
     required this.timelineProgress,
     required this.rotationX,
@@ -100,6 +156,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
   final List<ModulationVector> vectors;
   final List<TimedKey> timelineKeys;
   final VisualizationMode visualizationMode;
+  final VisualizationDisplayOptions displayOptions;
   final double depthProgress;
   final double timelineProgress;
   final double rotationX;
@@ -143,7 +200,9 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
 
     if (depthProgress <= 0.001) {
       _drawRings(canvas, center, outerRadius, innerRadius);
-      _drawSpokes(canvas, center, outerRadius);
+      if (displayOptions.showGrid) {
+        _drawSpokes(canvas, center, outerRadius);
+      }
       _drawKeyAnchors(canvas, center, outerRadius, innerRadius);
       _drawLabels(canvas, center, labelRadius, innerRadius);
       _drawVectors(canvas, center, outerRadius, innerRadius);
@@ -168,7 +227,9 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
       _drawVectors3d(canvas, projection, center, outerRadius, innerRadius);
     }
 
-    _drawLegend(canvas, size);
+    if (displayOptions.showLegend) {
+      _drawLegend(canvas, size);
+    }
   }
 
   void _drawTimeline(
@@ -214,17 +275,19 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
         chartLeft + time / totalDuration * (chartRight - chartLeft);
 
     final gridProgress = ((progress - 0.38) / 0.62).clamp(0.0, 1.0);
-    _drawTimelineGrid(
-      canvas,
-      chartLeft,
-      chartRight,
-      chartTop,
-      chartBottom,
-      minDistance,
-      maxDistance,
-      yForDistance,
-      gridProgress,
-    );
+    if (displayOptions.showGrid) {
+      _drawTimelineGrid(
+        canvas,
+        chartLeft,
+        chartRight,
+        chartTop,
+        chartBottom,
+        minDistance,
+        maxDistance,
+        yForDistance,
+        gridProgress,
+      );
+    }
     _drawUnfoldingFifthsScaffold(
       canvas,
       center,
@@ -332,15 +395,19 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
       _drawTimelineKeyLabel(canvas, point, progress);
     }
 
-    _drawTimelineAxisLabels(
-      canvas,
-      size,
-      chartLeft,
-      chartRight,
-      chartBottom,
-      gridProgress,
-    );
-    _drawTimelineLegend(canvas, size, gridProgress);
+    if (displayOptions.showGrid) {
+      _drawTimelineAxisLabels(
+        canvas,
+        size,
+        chartLeft,
+        chartRight,
+        chartBottom,
+        gridProgress,
+      );
+    }
+    if (displayOptions.showLegend) {
+      _drawTimelineLegend(canvas, size, gridProgress);
+    }
   }
 
   void _drawTimelineGrid(
@@ -518,36 +585,44 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
         );
 
       final labelAlpha = (0.35 + progress * 0.65).clamp(0.0, 1.0);
-      _drawText(
-        canvas,
-        majorKey.format(notationSystem),
-        Offset.lerp(
-          center + _unit(angle) * labelRadius,
-          majorAxis - const Offset(38, 0),
-          progress,
-        )!,
-        TextStyle(
-          color: palette.primaryText.withValues(alpha: labelAlpha),
-          fontSize: 15 - progress * 2,
-          fontWeight: .w700,
-        ),
-        backgroundColor: palette.labelBackground.withValues(alpha: labelAlpha),
-      );
-      _drawText(
-        canvas,
-        minorKey.format(notationSystem),
-        Offset.lerp(
-          center + _unit(angle) * innerRadius,
-          minorAxis + const Offset(28, 0),
-          progress,
-        )!,
-        TextStyle(
-          color: palette.secondaryText.withValues(alpha: labelAlpha),
-          fontSize: 13 - progress,
-          fontWeight: .w600,
-        ),
-        backgroundColor: palette.labelBackground.withValues(alpha: labelAlpha),
-      );
+      if (displayOptions.showMajorLabels) {
+        _drawText(
+          canvas,
+          majorKey.format(notationSystem),
+          Offset.lerp(
+            center + _unit(angle) * labelRadius,
+            majorAxis - const Offset(38, 0),
+            progress,
+          )!,
+          TextStyle(
+            color: palette.primaryText.withValues(alpha: labelAlpha),
+            fontSize: 15 - progress * 2,
+            fontWeight: .w700,
+          ),
+          backgroundColor: palette.labelBackground.withValues(
+            alpha: labelAlpha,
+          ),
+        );
+      }
+      if (displayOptions.showMinorLabels) {
+        _drawText(
+          canvas,
+          minorKey.format(notationSystem),
+          Offset.lerp(
+            center + _unit(angle) * innerRadius,
+            minorAxis + const Offset(28, 0),
+            progress,
+          )!,
+          TextStyle(
+            color: palette.secondaryText.withValues(alpha: labelAlpha),
+            fontSize: 13 - progress,
+            fontWeight: .w600,
+          ),
+          backgroundColor: palette.labelBackground.withValues(
+            alpha: labelAlpha,
+          ),
+        );
+      }
     }
   }
 
@@ -638,13 +713,15 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
         ..color = vector.colorFor(palette),
     );
 
-    _drawVectorLabel(
-      canvas,
-      vector.label,
-      _cubicPoint(start, startControl, endControl, end, 0.5) +
-          const Offset(20, 0),
-      vector.colorFor(palette),
-    );
+    if (displayOptions.showVectorLabels) {
+      _drawVectorLabel(
+        canvas,
+        vector.label,
+        _cubicPoint(start, startControl, endControl, end, 0.5) +
+            const Offset(20, 0),
+        vector.colorFor(palette),
+      );
+    }
   }
 
   void _drawTimelineSameKeyMarker(
@@ -688,31 +765,38 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
         strokePaint,
       );
 
-    _drawText(
-      canvas,
-      key.format(notationSystem),
-      point.position + const Offset(0, -22),
-      TextStyle(
-        color: isMajor ? palette.primaryText : palette.secondaryText,
-        fontSize: 13,
-        fontWeight: .w700,
-      ),
-      backgroundColor: palette.labelBackground,
-    );
+    final showKeyLabel = isMajor
+        ? displayOptions.showMajorLabels
+        : displayOptions.showMinorLabels;
+    if (showKeyLabel) {
+      _drawText(
+        canvas,
+        key.format(notationSystem),
+        point.position + const Offset(0, -22),
+        TextStyle(
+          color: isMajor ? palette.primaryText : palette.secondaryText,
+          fontSize: 13,
+          fontWeight: .w700,
+        ),
+        backgroundColor: palette.labelBackground,
+      );
+    }
 
-    _drawText(
-      canvas,
-      _formatDuration(point.entry.duration),
-      point.position + const Offset(0, 22),
-      TextStyle(
-        color: palette.legendText.withValues(alpha: progress),
-        fontSize: 11,
-        fontWeight: .w600,
-      ),
-      backgroundColor: palette.vectorLabelBackground.withValues(
-        alpha: progress,
-      ),
-    );
+    if (displayOptions.showDurationLabels) {
+      _drawText(
+        canvas,
+        _formatDuration(point.entry.duration),
+        point.position + const Offset(0, 22),
+        TextStyle(
+          color: palette.legendText.withValues(alpha: progress),
+          fontSize: 11,
+          fontWeight: .w600,
+        ),
+        backgroundColor: palette.vectorLabelBackground.withValues(
+          alpha: progress,
+        ),
+      );
+    }
   }
 
   void _drawTimelineAxisLabels(
@@ -811,17 +895,19 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
         ..color = palette.chartInnerRing,
     );
 
-    final spokePaint = Paint()
-      ..style = .stroke
-      ..strokeWidth = 1
-      ..color = const Color(0xffdfd7c7);
-    for (final note in majorRingNotes) {
-      final angle = _angleFor(note);
-      canvas.drawLine(
-        projection.project(center, 0),
-        projection.project(center + _unit(angle) * outerRadius, 0),
-        spokePaint,
-      );
+    if (displayOptions.showGrid) {
+      final spokePaint = Paint()
+        ..style = .stroke
+        ..strokeWidth = 1
+        ..color = const Color(0xffdfd7c7);
+      for (final note in majorRingNotes) {
+        final angle = _angleFor(note);
+        canvas.drawLine(
+          projection.project(center, 0),
+          projection.project(center + _unit(angle) * outerRadius, 0),
+          spokePaint,
+        );
+      }
     }
 
     _drawProjectedKeyAnchors(
@@ -919,28 +1005,32 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
       final minorKey = majorKey.signature.keys[TonalMode.minor]!;
       final angle = _angleFor(note);
 
-      _drawText(
-        canvas,
-        majorKey.format(notationSystem),
-        projection.project(center + _unit(angle) * outerLabelRadius, 0),
-        const TextStyle(
-          color: Color(0xff222826),
-          fontSize: 15,
-          fontWeight: .w700,
-        ),
-        backgroundColor: const Color(0xf2fffcf5),
-      );
-      _drawText(
-        canvas,
-        minorKey.format(notationSystem),
-        projection.project(center + _unit(angle) * innerLabelRadius, 0),
-        const TextStyle(
-          color: Color(0xff6a4c7b),
-          fontSize: 13,
-          fontWeight: .w600,
-        ),
-        backgroundColor: const Color(0xf2fffcf5),
-      );
+      if (displayOptions.showMajorLabels) {
+        _drawText(
+          canvas,
+          majorKey.format(notationSystem),
+          projection.project(center + _unit(angle) * outerLabelRadius, 0),
+          const TextStyle(
+            color: Color(0xff222826),
+            fontSize: 15,
+            fontWeight: .w700,
+          ),
+          backgroundColor: const Color(0xf2fffcf5),
+        );
+      }
+      if (displayOptions.showMinorLabels) {
+        _drawText(
+          canvas,
+          minorKey.format(notationSystem),
+          projection.project(center + _unit(angle) * innerLabelRadius, 0),
+          const TextStyle(
+            color: Color(0xff6a4c7b),
+            fontSize: 13,
+            fontWeight: .w600,
+          ),
+          backgroundColor: const Color(0xf2fffcf5),
+        );
+      }
     }
   }
 
@@ -1021,28 +1111,32 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
       final minorKey = majorKey.signature.keys[TonalMode.minor]!;
       final angle = _angleFor(note);
 
-      _drawText(
-        canvas,
-        majorKey.format(notationSystem),
-        center + _unit(angle) * outerLabelRadius,
-        const TextStyle(
-          color: Color(0xff222826),
-          fontSize: 15,
-          fontWeight: .w700,
-        ),
-        backgroundColor: const Color(0xf2fffcf5),
-      );
-      _drawText(
-        canvas,
-        minorKey.format(notationSystem),
-        center + _unit(angle) * innerLabelRadius,
-        const TextStyle(
-          color: Color(0xff6a4c7b),
-          fontSize: 13,
-          fontWeight: .w600,
-        ),
-        backgroundColor: const Color(0xf2fffcf5),
-      );
+      if (displayOptions.showMajorLabels) {
+        _drawText(
+          canvas,
+          majorKey.format(notationSystem),
+          center + _unit(angle) * outerLabelRadius,
+          const TextStyle(
+            color: Color(0xff222826),
+            fontSize: 15,
+            fontWeight: .w700,
+          ),
+          backgroundColor: const Color(0xf2fffcf5),
+        );
+      }
+      if (displayOptions.showMinorLabels) {
+        _drawText(
+          canvas,
+          minorKey.format(notationSystem),
+          center + _unit(angle) * innerLabelRadius,
+          const TextStyle(
+            color: Color(0xff6a4c7b),
+            fontSize: 13,
+            fontWeight: .w600,
+          ),
+          backgroundColor: const Color(0xf2fffcf5),
+        );
+      }
     }
   }
 
@@ -1080,13 +1174,15 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
       _drawArrowHead(canvas, vectorPath);
     }
 
-    for (final vectorPath in paths) {
-      _drawVectorLabel(
-        canvas,
-        vectorPath.vector.label,
-        vectorPath.labelPosition,
-        vectorPath.vector.colorFor(palette),
-      );
+    if (displayOptions.showVectorLabels) {
+      for (final vectorPath in paths) {
+        _drawVectorLabel(
+          canvas,
+          vectorPath.vector.label,
+          vectorPath.labelPosition,
+          vectorPath.vector.colorFor(palette),
+        );
+      }
     }
   }
 
@@ -1148,13 +1244,15 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
       _drawArrowHead3d(canvas, projection, vectorPath, elevation);
     }
 
-    for (final (index, vectorPath) in paths.indexed) {
-      _drawVectorLabel(
-        canvas,
-        vectorPath.vector.label,
-        projection.project(vectorPath.labelPosition, _elevationFor(index)),
-        vectorPath.vector.colorFor(palette),
-      );
+    if (displayOptions.showVectorLabels) {
+      for (final (index, vectorPath) in paths.indexed) {
+        _drawVectorLabel(
+          canvas,
+          vectorPath.vector.label,
+          projection.project(vectorPath.labelPosition, _elevationFor(index)),
+          vectorPath.vector.colorFor(palette),
+        );
+      }
     }
   }
 
@@ -1496,6 +1594,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
       oldDelegate.vectors != vectors ||
       oldDelegate.timelineKeys != timelineKeys ||
       oldDelegate.visualizationMode != visualizationMode ||
+      oldDelegate.displayOptions != displayOptions ||
       oldDelegate.depthProgress != depthProgress ||
       oldDelegate.timelineProgress != timelineProgress ||
       oldDelegate.rotationX != rotationX ||

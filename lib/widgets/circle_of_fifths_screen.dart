@@ -53,6 +53,8 @@ class _CircleOfFifthsScreenState extends State<CircleOfFifthsScreen>
   VisualizationMode _visualizationMode = .circle2d;
   late final ValueNotifier<StringNotationSystem<Key>> _notationSystemNotifier =
       .new(const GermanKeyNotation());
+  late final ValueNotifier<VisualizationDisplayOptions>
+  _displayOptionsNotifier = .new(const VisualizationDisplayOptions());
   Offset _viewPan = .zero;
   double _rotationX = -0.82;
   double _rotationY = 0.22;
@@ -109,6 +111,7 @@ class _CircleOfFifthsScreenState extends State<CircleOfFifthsScreen>
     _modeController.dispose();
     _timelineController.dispose();
     _notationSystemNotifier.dispose();
+    _displayOptionsNotifier.dispose();
     super.dispose();
   }
 
@@ -120,13 +123,22 @@ class _CircleOfFifthsScreenState extends State<CircleOfFifthsScreen>
         return ValueListenableBuilder(
           valueListenable: _notationSystemNotifier,
           builder: (context, notationSystem, _) {
-            return SettingsModal(
-              isDark: widget.themeMode == .dark,
-              notationSystem: notationSystem,
-              onNotationSystemChanged: (notationSystem) {
-                _notationSystemNotifier.value = notationSystem;
+            return ValueListenableBuilder(
+              valueListenable: _displayOptionsNotifier,
+              builder: (context, displayOptions, _) {
+                return SettingsModal(
+                  isDark: widget.themeMode == .dark,
+                  notationSystem: notationSystem,
+                  displayOptions: displayOptions,
+                  onNotationSystemChanged: (notationSystem) {
+                    _notationSystemNotifier.value = notationSystem;
+                  },
+                  onDisplayOptionsChanged: (displayOptions) {
+                    _displayOptionsNotifier.value = displayOptions;
+                  },
+                  onThemeModeChanged: widget.onThemeModeChanged,
+                );
               },
-              onThemeModeChanged: widget.onThemeModeChanged,
             );
           },
         );
@@ -190,16 +202,22 @@ class _CircleOfFifthsScreenState extends State<CircleOfFifthsScreen>
                           >(
                             valueListenable: _notationSystemNotifier,
                             builder: (context, notationSystem, _) {
-                              return CircleOfFifthsPainter(
-                                vectors: _sequence.vectors,
-                                timelineKeys: _sequence.keys,
-                                visualizationMode: _visualizationMode,
-                                depthProgress: _modeAnimation.value,
-                                timelineProgress: _timelineAnimation.value,
-                                viewPan: _viewPan,
-                                rotationX: _rotationX,
-                                rotationY: _rotationY,
-                                notationSystem: notationSystem,
+                              return ValueListenableBuilder(
+                                valueListenable: _displayOptionsNotifier,
+                                builder: (context, displayOptions, _) {
+                                  return CircleOfFifthsPainter(
+                                    vectors: _sequence.vectors,
+                                    timelineKeys: _sequence.keys,
+                                    visualizationMode: _visualizationMode,
+                                    depthProgress: _modeAnimation.value,
+                                    timelineProgress: _timelineAnimation.value,
+                                    viewPan: _viewPan,
+                                    rotationX: _rotationX,
+                                    rotationY: _rotationY,
+                                    notationSystem: notationSystem,
+                                    displayOptions: displayOptions,
+                                  );
+                                },
                               );
                             },
                           );
