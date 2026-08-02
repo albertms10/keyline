@@ -4,13 +4,29 @@ import 'package:flutter/material.dart' hide Interval, Key;
 import 'package:keyline/colors.dart';
 import 'package:keyline/model.dart';
 import 'package:music_notes/music_notes.dart' hide Size;
+import 'package:music_notes/utils.dart';
+
+/// Available visualization layouts.
+enum VisualizationMode {
+  /// The elevated circle-of-fifths chart.
+  circle3d,
+
+  /// The flat circle-of-fifths chart.
+  circle2d,
+
+  /// The unfolded circle-of-fifths timeline.
+  timeline,
+}
 
 /// Draws a two-ring circle-of-fifths chart with modulation arrows.
 class CircleOfFifthsPainter extends StatelessWidget {
   /// Creates a circle-of-fifths painter widget.
   const CircleOfFifthsPainter({
     required this.vectors,
+    required this.timelineKeys,
+    required this.visualizationMode,
     this.depthProgress = 0,
+    this.timelineProgress = 0,
     this.rotationX = 0,
     this.rotationY = 0,
     this.viewPan = .zero,
@@ -21,8 +37,17 @@ class CircleOfFifthsPainter extends StatelessWidget {
   /// Modulation vectors to overlay on the chart.
   final List<ModulationVector> vectors;
 
+  /// Timed tonal keys used by the timeline layout.
+  final List<TimedKey> timelineKeys;
+
+  /// The active visualization layout.
+  final VisualizationMode visualizationMode;
+
   /// Progress of the transition from flat paper to elevated 3D mode.
   final double depthProgress;
+
+  /// Progress of the transition from circle to unfolded timeline.
+  final double timelineProgress;
 
   /// X-axis rotation for the elevated view.
   final double rotationX;
@@ -43,7 +68,10 @@ class CircleOfFifthsPainter extends StatelessWidget {
     return CustomPaint(
       painter: _CircleOfFifthsCustomPainter(
         vectors: vectors,
+        timelineKeys: timelineKeys,
+        visualizationMode: visualizationMode,
         depthProgress: depthProgress,
+        timelineProgress: timelineProgress,
         rotationX: rotationX,
         rotationY: rotationY,
         viewPan: viewPan,
@@ -58,7 +86,10 @@ class CircleOfFifthsPainter extends StatelessWidget {
 class _CircleOfFifthsCustomPainter extends CustomPainter {
   const _CircleOfFifthsCustomPainter({
     required this.vectors,
+    required this.timelineKeys,
+    required this.visualizationMode,
     required this.depthProgress,
+    required this.timelineProgress,
     required this.rotationX,
     required this.rotationY,
     required this.viewPan,
@@ -67,7 +98,10 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
   });
 
   final List<ModulationVector> vectors;
+  final List<TimedKey> timelineKeys;
+  final VisualizationMode visualizationMode;
   final double depthProgress;
+  final double timelineProgress;
   final double rotationX;
   final double rotationY;
   final Offset viewPan;
@@ -93,6 +127,19 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
     final outerRadius = chartRadius;
     final innerRadius = chartRadius * 0.62;
     final labelRadius = chartRadius * 1.13;
+
+    if (timelineProgress > 0.001) {
+      _drawTimeline(
+        canvas,
+        size,
+        center,
+        outerRadius,
+        innerRadius,
+        labelRadius,
+        timelineProgress,
+      );
+      return;
+    }
 
     if (depthProgress <= 0.001) {
       _drawRings(canvas, center, outerRadius, innerRadius);
@@ -122,6 +169,606 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
     }
 
     _drawLegend(canvas, size);
+  }
+
+  void _drawTimeline(
+    Canvas canvas,
+    Size size,
+    Offset center,
+    double outerRadius,
+    double innerRadius,
+    double labelRadius,
+    double progress,
+  ) {
+    final entries = timelineKeys;
+    if (entries.isEmpty) return;
+
+    final double horizontalInset = math.min(96, size.width * 0.18);
+    const topInset = 46.0;
+    const bottomInset = 58.0;
+    final chartLeft = horizontalInset;
+    final chartRight = size.width - 34;
+    const chartTop = topInset;
+    final chartBottom = size.height - bottomInset;
+    if (chartRight <= chartLeft || chartBottom <= chartTop) return;
+
+    final distances = [
+      for (final entry in entries) entry.key.signature.distance!,
+      for (final note in majorRingNotes) note.major.signature.distance!,
+    ];
+    final minDistance = math.min(-6, distances.reduce(math.min));
+    final maxDistance = math.max(6, distances.reduce(math.max));
+    final distanceSpan = math.max(1, maxDistance - minDistance);
+    final totalDuration = math.max(
+      1,
+      entries.fold<double>(0, (total, entry) => total + entry.duration),
+    );
+
+    double yForDistance(int distance) =>
+        chartBottom -
+        (distance - minDistance) / distanceSpan * (chartBottom - chartTop);
+    double yForFifths(double distance) =>
+        chartBottom -
+        (distance - minDistance) / distanceSpan * (chartBottom - chartTop);
+    double xForTime(double time) =>
+        chartLeft + time / totalDuration * (chartRight - chartLeft);
+
+    final gridProgress = ((progress - 0.38) / 0.62).clamp(0.0, 1.0);
+    _drawTimelineGrid(
+      canvas,
+      chartLeft,
+      chartRight,
+      chartTop,
+      chartBottom,
+      minDistance,
+      maxDistance,
+      yForDistance,
+      gridProgress,
+    );
+    _drawUnfoldingFifthsScaffold(
+      canvas,
+      center,
+      outerRadius,
+      innerRadius,
+      labelRadius,
+      chartLeft,
+      yForFifths,
+      progress,
+    );
+
+    var currentTime = 0.0;
+    final points = <_TimelinePoint>[];
+    for (final entry in entries) {
+      final circularPosition = _pointForKey(
+        entry.key,
+        center,
+        outerRadius,
+        innerRadius,
+      );
+      final timelinePosition = Offset(
+        xForTime(currentTime),
+        yForDistance(entry.key.signature.distance!),
+      );
+      points.add(
+        _TimelinePoint(
+          entry: entry,
+          time: currentTime,
+          position: Offset.lerp(circularPosition, timelinePosition, progress)!,
+        ),
+      );
+      currentTime += entry.duration;
+    }
+
+    for (final point in points) {
+      final circularEnd = _pointForKey(
+        point.entry.key,
+        center,
+        outerRadius,
+        innerRadius,
+      );
+      final timelineEnd = Offset(
+        xForTime(point.time + point.entry.duration),
+        yForDistance(point.entry.key.signature.distance!),
+      );
+      final holdEnd = Offset(
+        Offset.lerp(circularEnd, timelineEnd, progress)!.dx,
+        point.position.dy,
+      );
+      final holdPaint = Paint()
+        ..style = .stroke
+        ..strokeWidth = 4
+        ..strokeCap = .round
+        ..color = point.entry.key.mode == .major
+            ? palette.majorToMajor.withValues(alpha: 0.5)
+            : palette.minorToMinor.withValues(alpha: 0.5);
+      canvas.drawLine(point.position, holdEnd, holdPaint);
+    }
+
+    for (final (index, vector) in vectors.indexed) {
+      if (index + 1 >= points.length) break;
+
+      final from = points[index];
+      final to = points[index + 1];
+      final circularPath = _vectorPathFor(
+        vector,
+        index,
+        center,
+        outerRadius,
+        innerRadius,
+      );
+      final timelineStart = Offset(
+        xForTime(from.time + from.entry.duration),
+        yForDistance(from.entry.key.signature.distance!),
+      );
+      final timelineTip = Offset(timelineStart.dx, to.position.dy);
+      final start = Offset.lerp(circularPath.start, timelineStart, progress)!;
+      final timelineDirection = _normalized(timelineTip - timelineStart);
+      final timelineEnd = timelineTip - timelineDirection * _arrowLength * 0.72;
+      final end = Offset.lerp(circularPath.end, timelineEnd, progress)!;
+      final tip = Offset.lerp(circularPath.tip, timelineTip, progress)!;
+      final timelineDelta = timelineEnd - timelineStart;
+      final startControl = Offset.lerp(
+        circularPath.startControl,
+        timelineStart + timelineDelta * 0.34,
+        progress,
+      )!;
+      final endControl = Offset.lerp(
+        circularPath.endControl,
+        timelineStart + timelineDelta * 0.72,
+        progress,
+      )!;
+      _drawTimelineVector(
+        canvas,
+        vector,
+        start,
+        startControl,
+        endControl,
+        end,
+        tip,
+      );
+    }
+
+    for (final point in points) {
+      _drawTimelineKeyLabel(canvas, point, progress);
+    }
+
+    _drawTimelineAxisLabels(
+      canvas,
+      size,
+      chartLeft,
+      chartRight,
+      chartBottom,
+      gridProgress,
+    );
+    _drawTimelineLegend(canvas, size, gridProgress);
+  }
+
+  void _drawTimelineGrid(
+    Canvas canvas,
+    double chartLeft,
+    double chartRight,
+    double chartTop,
+    double chartBottom,
+    int minDistance,
+    int maxDistance,
+    double Function(int distance) yForDistance,
+    double progress,
+  ) {
+    final axisPaint = Paint()
+      ..style = .stroke
+      ..strokeWidth = 1.6
+      ..color = palette.chartRing.withValues(alpha: progress);
+    final gridPaint = Paint()
+      ..style = .stroke
+      ..strokeWidth = 1
+      ..color = palette.chartSpoke.withValues(alpha: 0.72 * progress);
+
+    for (var distance = minDistance; distance <= maxDistance; distance++) {
+      final y = yForDistance(distance);
+      canvas.drawLine(Offset(chartLeft, y), Offset(chartRight, y), gridPaint);
+      _drawText(
+        canvas,
+        distance == 0 ? 'C / 0' : distance.toDeltaString(),
+        Offset(chartLeft - 36, y),
+        TextStyle(
+          color: (distance == 0 ? palette.primaryText : palette.legendText)
+              .withValues(alpha: progress),
+          fontSize: distance == 0 ? 13 : 12,
+          fontWeight: distance == 0 ? .w700 : .w500,
+        ),
+      );
+    }
+
+    final zeroY = yForDistance(0);
+    canvas
+      ..drawLine(
+        Offset(chartLeft, chartTop),
+        Offset(chartLeft, chartBottom),
+        axisPaint,
+      )
+      ..drawLine(Offset(chartLeft, zeroY), Offset(chartRight, zeroY), axisPaint)
+      ..drawLine(
+        Offset(chartLeft, chartBottom),
+        Offset(chartRight, chartBottom),
+        axisPaint,
+      );
+  }
+
+  void _drawUnfoldingFifthsScaffold(
+    Canvas canvas,
+    Offset center,
+    double outerRadius,
+    double innerRadius,
+    double labelRadius,
+    double axisX,
+    double Function(double distance) yForFifths,
+    double progress,
+  ) {
+    final spokePaint = Paint()
+      ..style = .stroke
+      ..strokeWidth = 1
+      ..color = palette.chartSpoke;
+    final majorPaint = Paint()
+      ..style = .stroke
+      ..strokeWidth = 2
+      ..color = palette.chartRing;
+    final minorPaint = Paint()
+      ..style = .stroke
+      ..strokeWidth = 1.5
+      ..color = palette.chartInnerRing;
+
+    canvas
+      ..drawPath(
+        _morphedFifthsArcPath(
+          center: center,
+          radius: outerRadius,
+          axisX: axisX,
+          yForFifths: yForFifths,
+          progress: progress,
+          startDistance: 0,
+          endDistance: 6,
+        ),
+        majorPaint,
+      )
+      ..drawPath(
+        _morphedFifthsArcPath(
+          center: center,
+          radius: outerRadius,
+          axisX: axisX,
+          yForFifths: yForFifths,
+          progress: progress,
+          startDistance: 0,
+          endDistance: -6,
+        ),
+        majorPaint,
+      )
+      ..drawPath(
+        _morphedFifthsArcPath(
+          center: center,
+          radius: innerRadius,
+          axisX: axisX + 18,
+          yForFifths: yForFifths,
+          progress: progress,
+          startDistance: 0,
+          endDistance: 6,
+        ),
+        minorPaint,
+      )
+      ..drawPath(
+        _morphedFifthsArcPath(
+          center: center,
+          radius: innerRadius,
+          axisX: axisX + 18,
+          yForFifths: yForFifths,
+          progress: progress,
+          startDistance: 0,
+          endDistance: -6,
+        ),
+        minorPaint,
+      );
+
+    for (final note in majorRingNotes) {
+      final angle = _angleFor(note);
+      final majorKey = note.major.signature.keys[TonalMode.major]!;
+      final minorKey = majorKey.signature.keys[TonalMode.minor]!;
+      final distance = majorKey.signature.distance!;
+      final majorCircle = center + _unit(angle) * outerRadius;
+      final minorCircle = center + _unit(angle) * innerRadius;
+      final majorAxis = Offset(axisX, yForFifths(distance.toDouble()));
+      final minorAxis = Offset(axisX + 18, yForFifths(distance.toDouble()));
+      final majorPoint = Offset.lerp(majorCircle, majorAxis, progress)!;
+      final minorPoint = Offset.lerp(minorCircle, minorAxis, progress)!;
+
+      final spokeStart = Offset.lerp(
+        center,
+        Offset(axisX, majorPoint.dy),
+        progress,
+      )!;
+      canvas
+        ..drawLine(spokeStart, majorPoint, spokePaint)
+        ..drawCircle(
+          majorPoint,
+          _majorAnchorRadius,
+          Paint()
+            ..style = .fill
+            ..color = palette.anchorFill,
+        )
+        ..drawCircle(
+          majorPoint,
+          _majorAnchorRadius,
+          Paint()
+            ..style = .stroke
+            ..strokeWidth = 2
+            ..color = palette.anchorStroke,
+        )
+        ..drawCircle(
+          minorPoint,
+          _minorAnchorRadius,
+          Paint()
+            ..style = .fill
+            ..color = palette.anchorFill,
+        )
+        ..drawCircle(
+          minorPoint,
+          _minorAnchorRadius,
+          Paint()
+            ..style = .stroke
+            ..strokeWidth = 1.75
+            ..color = palette.secondaryText,
+        );
+
+      final labelAlpha = (0.35 + progress * 0.65).clamp(0.0, 1.0);
+      _drawText(
+        canvas,
+        majorKey.format(notationSystem),
+        Offset.lerp(
+          center + _unit(angle) * labelRadius,
+          majorAxis - const Offset(38, 0),
+          progress,
+        )!,
+        TextStyle(
+          color: palette.primaryText.withValues(alpha: labelAlpha),
+          fontSize: 15 - progress * 2,
+          fontWeight: .w700,
+        ),
+        backgroundColor: palette.labelBackground.withValues(alpha: labelAlpha),
+      );
+      _drawText(
+        canvas,
+        minorKey.format(notationSystem),
+        Offset.lerp(
+          center + _unit(angle) * innerRadius,
+          minorAxis + const Offset(28, 0),
+          progress,
+        )!,
+        TextStyle(
+          color: palette.secondaryText.withValues(alpha: labelAlpha),
+          fontSize: 13 - progress,
+          fontWeight: .w600,
+        ),
+        backgroundColor: palette.labelBackground.withValues(alpha: labelAlpha),
+      );
+    }
+  }
+
+  Path _morphedFifthsArcPath({
+    required Offset center,
+    required double radius,
+    required double axisX,
+    required double Function(double distance) yForFifths,
+    required double progress,
+    required double startDistance,
+    required double endDistance,
+  }) {
+    final path = Path();
+    const segments = 48;
+    for (var i = 0; i <= segments; i++) {
+      final unit = i / segments;
+      final distance = startDistance + (endDistance - startDistance) * unit;
+      final angle = distance * math.pi / 6 - math.pi / 2;
+      final circlePoint = center + _unit(angle) * radius;
+      final axisPoint = Offset(axisX, yForFifths(distance));
+      final point = Offset.lerp(circlePoint, axisPoint, progress)!;
+      if (i == 0) {
+        path.moveTo(point.dx, point.dy);
+      } else {
+        path.lineTo(point.dx, point.dy);
+      }
+    }
+
+    return path;
+  }
+
+  void _drawTimelineVector(
+    Canvas canvas,
+    ModulationVector vector,
+    Offset start,
+    Offset startControl,
+    Offset endControl,
+    Offset end,
+    Offset tip,
+  ) {
+    if ((tip - start).distance < 0.5) {
+      _drawTimelineSameKeyMarker(canvas, vector, start);
+      return;
+    }
+
+    final paint = Paint()
+      ..style = .stroke
+      ..strokeWidth = 3
+      ..strokeCap = .round
+      ..color = vector.colorFor(palette);
+
+    final path = Path()
+      ..moveTo(start.dx, start.dy)
+      ..cubicTo(
+        startControl.dx,
+        startControl.dy,
+        endControl.dx,
+        endControl.dy,
+        end.dx,
+        end.dy,
+      );
+    if (vector.dashed) {
+      _drawDashedPath(canvas, path, paint);
+    } else {
+      canvas.drawPath(path, paint);
+    }
+
+    final direction = _normalized(tip - end);
+    if (direction == .zero) return;
+
+    final normal = _perpendicular(direction);
+    final baseCenter = tip - direction * _arrowLength;
+    final arrowPath = Path()
+      ..moveTo(tip.dx, tip.dy)
+      ..lineTo(
+        baseCenter.dx + normal.dx * _arrowHalfWidth,
+        baseCenter.dy + normal.dy * _arrowHalfWidth,
+      )
+      ..lineTo(
+        baseCenter.dx - normal.dx * _arrowHalfWidth,
+        baseCenter.dy - normal.dy * _arrowHalfWidth,
+      )
+      ..close();
+    canvas.drawPath(
+      arrowPath,
+      Paint()
+        ..style = .fill
+        ..color = vector.colorFor(palette),
+    );
+
+    _drawVectorLabel(
+      canvas,
+      vector.label,
+      _cubicPoint(start, startControl, endControl, end, 0.5) +
+          const Offset(20, 0),
+      vector.colorFor(palette),
+    );
+  }
+
+  void _drawTimelineSameKeyMarker(
+    Canvas canvas,
+    ModulationVector vector,
+    Offset center,
+  ) {
+    canvas.drawCircle(
+      center,
+      5,
+      Paint()
+        ..style = .fill
+        ..color = vector.colorFor(palette),
+    );
+  }
+
+  void _drawTimelineKeyLabel(
+    Canvas canvas,
+    _TimelinePoint point,
+    double progress,
+  ) {
+    final key = point.entry.key;
+    final isMajor = key.mode == .major;
+    final fillPaint = Paint()
+      ..style = .fill
+      ..color = palette.anchorFill;
+    final strokePaint = Paint()
+      ..style = .stroke
+      ..strokeWidth = isMajor ? 2 : 1.75
+      ..color = isMajor ? palette.anchorStroke : palette.secondaryText;
+
+    canvas
+      ..drawCircle(
+        point.position,
+        isMajor ? _majorAnchorRadius : _minorAnchorRadius,
+        fillPaint,
+      )
+      ..drawCircle(
+        point.position,
+        isMajor ? _majorAnchorRadius : _minorAnchorRadius,
+        strokePaint,
+      );
+
+    _drawText(
+      canvas,
+      key.format(notationSystem),
+      point.position + const Offset(0, -22),
+      TextStyle(
+        color: isMajor ? palette.primaryText : palette.secondaryText,
+        fontSize: 13,
+        fontWeight: .w700,
+      ),
+      backgroundColor: palette.labelBackground,
+    );
+
+    _drawText(
+      canvas,
+      _formatDuration(point.entry.duration),
+      point.position + const Offset(0, 22),
+      TextStyle(
+        color: palette.legendText.withValues(alpha: progress),
+        fontSize: 11,
+        fontWeight: .w600,
+      ),
+      backgroundColor: palette.vectorLabelBackground.withValues(
+        alpha: progress,
+      ),
+    );
+  }
+
+  void _drawTimelineAxisLabels(
+    Canvas canvas,
+    Size size,
+    double chartLeft,
+    double chartRight,
+    double chartBottom,
+    double progress,
+  ) {
+    _drawText(
+      canvas,
+      '+ fifths',
+      Offset(chartLeft - 38, 24),
+      TextStyle(
+        color: palette.legendText.withValues(alpha: progress),
+        fontSize: 12,
+        fontWeight: .w700,
+      ),
+    );
+    _drawText(
+      canvas,
+      '- fifths',
+      Offset(chartLeft - 38, size.height - 24),
+      TextStyle(
+        color: palette.legendText.withValues(alpha: progress),
+        fontSize: 12,
+        fontWeight: .w700,
+      ),
+    );
+    _drawText(
+      canvas,
+      'time',
+      Offset((chartLeft + chartRight) / 2, chartBottom + 34),
+      TextStyle(
+        color: palette.legendText.withValues(alpha: progress),
+        fontSize: 12,
+        fontWeight: .w700,
+      ),
+    );
+  }
+
+  void _drawTimelineLegend(Canvas canvas, Size size, double progress) {
+    _drawText(
+      canvas,
+      'key:duration',
+      Offset(size.width - 72, 22),
+      TextStyle(
+        color: palette.legendText.withValues(alpha: progress),
+        fontSize: 12,
+        fontWeight: .w600,
+      ),
+      backgroundColor: palette.vectorLabelBackground.withValues(
+        alpha: progress,
+      ),
+    );
   }
 
   void _drawPaperPlane(
@@ -847,10 +1494,36 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
   @override
   bool shouldRepaint(_CircleOfFifthsCustomPainter oldDelegate) =>
       oldDelegate.vectors != vectors ||
+      oldDelegate.timelineKeys != timelineKeys ||
+      oldDelegate.visualizationMode != visualizationMode ||
       oldDelegate.depthProgress != depthProgress ||
+      oldDelegate.timelineProgress != timelineProgress ||
       oldDelegate.rotationX != rotationX ||
       oldDelegate.rotationY != rotationY ||
       oldDelegate.viewPan != viewPan;
+}
+
+String _formatDuration(double value) {
+  if (value == value.roundToDouble()) {
+    return value.toInt().toString();
+  }
+
+  return value
+      .toStringAsFixed(2)
+      .replaceFirst(RegExp(r'0+$'), '')
+      .replaceFirst(RegExp(r'\.$'), '');
+}
+
+class _TimelinePoint {
+  const _TimelinePoint({
+    required this.entry,
+    required this.time,
+    required this.position,
+  });
+
+  final TimedKey entry;
+  final double time;
+  final Offset position;
 }
 
 class _VectorPath {

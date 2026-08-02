@@ -22,7 +22,7 @@ class CircleOfFifthsScreen extends StatefulWidget {
 }
 
 class _CircleOfFifthsScreenState extends State<CircleOfFifthsScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   static const _defaultInput = 'C e f Ges Ces';
 
   late final _controller = TextEditingController(
@@ -37,27 +37,79 @@ class _CircleOfFifthsScreenState extends State<CircleOfFifthsScreen>
     curve: Curves.easeInOutCubic,
     reverseCurve: Curves.easeInOutCubic,
   );
+  late final AnimationController _timelineController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 720),
+  );
+  late final Animation<double> _timelineAnimation = CurvedAnimation(
+    parent: _timelineController,
+    curve: Curves.easeInOutCubic,
+    reverseCurve: Curves.easeInOutCubic,
+  );
 
-  late List<ModulationVector> _vectors = _parseVectors(
+  late _TimedSequence _sequence = _parseSequence(
     widget.initialVectors ?? _defaultInput,
   );
-  bool _is3dMode = false;
+  VisualizationMode _visualizationMode = .circle2d;
   late final ValueNotifier<StringNotationSystem<Key>> _notationSystemNotifier =
       .new(const GermanKeyNotation());
   Offset _viewPan = .zero;
   double _rotationX = -0.82;
   double _rotationY = 0.22;
 
-  static List<ModulationVector> _parseVectors(String input) => input
-      .split(RegExp(r'[,\- ]+'))
-      .map(Key.parse)
-      .toList(growable: false)
-      .toModulationVectors();
+  bool get _is3dMode => _visualizationMode == .circle3d;
+
+  static _TimedSequence _parseSequence(String input) {
+    final entries = input
+        .split(RegExp(r'[,\-\s]+'))
+        .where((token) => token.isNotEmpty)
+        .map(_parseTimedKey)
+        .toList(growable: false);
+
+    return _TimedSequence(entries);
+  }
+
+  static TimedKey _parseTimedKey(String token) {
+    final separatorIndex = token.lastIndexOf(RegExp('[:=]'));
+    if (separatorIndex < 0) {
+      return TimedKey(key: Key.parse(token));
+    }
+
+    final duration = double.parse(token.substring(separatorIndex + 1));
+    if (duration <= 0) {
+      throw FormatException('Duration must be positive', token);
+    }
+
+    return TimedKey(
+      key: Key.parse(token.substring(0, separatorIndex)),
+      duration: duration,
+    );
+  }
+
+  Future<void> _setVisualizationMode(VisualizationMode mode) async {
+    setState(() {
+      _visualizationMode = mode;
+    });
+
+    if (mode == .timeline) {
+      await _modeController.reverse();
+      await _timelineController.forward();
+      return;
+    }
+
+    await _timelineController.reverse();
+    if (mode == .circle3d) {
+      await _modeController.forward();
+    } else {
+      await _modeController.reverse();
+    }
+  }
 
   @override
   void dispose() {
     _controller.dispose();
     _modeController.dispose();
+    _timelineController.dispose();
     _notationSystemNotifier.dispose();
     super.dispose();
   }
@@ -100,14 +152,14 @@ class _CircleOfFifthsScreenState extends State<CircleOfFifthsScreen>
                   filled: true,
                 ),
                 onChanged: (value) {
-                  final List<ModulationVector> vectors;
+                  final _TimedSequence sequence;
                   try {
-                    vectors = _parseVectors(value);
+                    sequence = _parseSequence(value);
                   } on FormatException {
                     return;
                   }
                   setState(() {
-                    _vectors = vectors;
+                    _sequence = sequence;
                   });
                 },
               ),
@@ -133,7 +185,10 @@ class _CircleOfFifthsScreenState extends State<CircleOfFifthsScreen>
                             }
                           : null,
                       child: AnimatedBuilder(
-                        animation: _modeAnimation,
+                        animation: Listenable.merge([
+                          _modeAnimation,
+                          _timelineAnimation,
+                        ]),
                         builder: (context, _) {
                           return ValueListenableBuilder<
                             StringNotationSystem<Key>
@@ -141,8 +196,11 @@ class _CircleOfFifthsScreenState extends State<CircleOfFifthsScreen>
                             valueListenable: _notationSystemNotifier,
                             builder: (context, notationSystem, _) {
                               return CircleOfFifthsPainter(
-                                vectors: _vectors,
+                                vectors: _sequence.vectors,
+                                timelineKeys: _sequence.keys,
+                                visualizationMode: _visualizationMode,
                                 depthProgress: _modeAnimation.value,
+                                timelineProgress: _timelineAnimation.value,
                                 viewPan: _viewPan,
                                 rotationX: _rotationX,
                                 rotationY: _rotationY,
@@ -178,33 +236,36 @@ class _CircleOfFifthsScreenState extends State<CircleOfFifthsScreen>
                               height: 22,
                               child: VerticalDivider(thickness: 1.5, width: 20),
                             ),
-                            Tooltip(
-                              message: 'Toggle 3D mode',
-                              child: Row(
-                                children: [
-                                  const Icon(
-                                    Icons.view_in_ar_outlined,
-                                    size: 18,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  const Text('3D'),
-                                  const SizedBox(width: 6),
-                                  Switch(
-                                    value: _is3dMode,
-                                    onChanged: (value) async {
-                                      setState(() {
-                                        _is3dMode = value;
-                                      });
-                                      if (value) {
-                                        await _modeController.forward();
-                                      } else {
-                                        await _modeController.reverse();
-                                      }
-                                    },
-                                    materialTapTargetSize: .shrinkWrap,
-                                  ),
-                                ],
+                            SegmentedButton<VisualizationMode>(
+                              showSelectedIcon: false,
+                              style: const ButtonStyle(
+                                visualDensity: VisualDensity.compact,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                padding: WidgetStatePropertyAll<EdgeInsets>(
+                                  EdgeInsets.symmetric(horizontal: 10),
+                                ),
                               ),
+                              segments: const [
+                                ButtonSegment(
+                                  value: VisualizationMode.circle3d,
+                                  icon: Icon(Icons.view_in_ar_outlined),
+                                  tooltip: 'Circle 3D',
+                                ),
+                                ButtonSegment(
+                                  value: VisualizationMode.circle2d,
+                                  icon: Icon(Icons.radio_button_checked),
+                                  tooltip: 'Circle 2D',
+                                ),
+                                ButtonSegment(
+                                  value: VisualizationMode.timeline,
+                                  icon: Icon(Icons.timeline),
+                                  tooltip: 'Timeline',
+                                ),
+                              ],
+                              selected: {_visualizationMode},
+                              onSelectionChanged: (selection) async {
+                                await _setVisualizationMode(selection.single);
+                              },
                             ),
                           ],
                         ),
@@ -219,4 +280,11 @@ class _CircleOfFifthsScreenState extends State<CircleOfFifthsScreen>
       ),
     );
   }
+}
+
+class _TimedSequence {
+  _TimedSequence(this.keys) : vectors = keys.toModulationVectors();
+
+  final List<TimedKey> keys;
+  final List<ModulationVector> vectors;
 }
