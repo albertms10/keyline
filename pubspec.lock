@@ -111,8 +111,8 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: "52e75ac9ae815ffb05e70b7d79a982a00c93dc84"
-      resolved-ref: "52e75ac9ae815ffb05e70b7d79a982a00c93dc84"
+      ref: main
+      resolved-ref: "18227c555b08ff325e4e83d19c7240d52f7afbdf"
       url: "https://github.com/albertms10/music_notes.git"
     source: git
     version: "0.26.0"

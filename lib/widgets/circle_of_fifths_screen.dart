@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide Interval, Key;
 import 'package:keyline/model/modulation_vector.dart';
 import 'package:keyline/widgets/circle_of_fifths_painter.dart';
+import 'package:keyline/widgets/settings_modal.dart';
 import 'package:music_notes/music_notes.dart';
 
 class CircleOfFifthsScreen extends StatefulWidget {
@@ -41,6 +42,8 @@ class _CircleOfFifthsScreenState extends State<CircleOfFifthsScreen>
     widget.initialVectors ?? _defaultInput,
   );
   bool _is3dMode = false;
+  late final ValueNotifier<StringNotationSystem<Key>> _notationSystemNotifier =
+      .new(const GermanKeyNotation());
   Offset _viewPan = .zero;
   double _rotationX = -0.82;
   double _rotationY = 0.22;
@@ -55,6 +58,7 @@ class _CircleOfFifthsScreenState extends State<CircleOfFifthsScreen>
   void dispose() {
     _controller.dispose();
     _modeController.dispose();
+    _notationSystemNotifier.dispose();
     super.dispose();
   }
 
@@ -62,44 +66,19 @@ class _CircleOfFifthsScreenState extends State<CircleOfFifthsScreen>
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      builder: (sheetContext) {
-        final isDark = widget.themeMode == .dark;
-
-        return SafeArea(
-          child: Padding(
-            padding: const .fromLTRB(20, 20, 20, 28),
-            child: Column(
-              mainAxisSize: .min,
-              crossAxisAlignment: .start,
-              children: [
-                Text(
-                  'Appearance',
-                  style: Theme.of(sheetContext).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Switch between light and dark modes.',
-                  style: Theme.of(sheetContext).textTheme.bodyMedium,
-                ),
-                const SizedBox(height: 12),
-                SwitchListTile(
-                  title: const Text('Dark mode'),
-                  value: isDark,
-                  onChanged: (value) {
-                    widget.onThemeModeChanged(value ? .dark : .light);
-                    Navigator.of(sheetContext).pop();
-                  },
-                  contentPadding: const EdgeInsetsDirectional.only(
-                    start: 16,
-                    end: 2,
-                  ),
-                  shape: const RoundedRectangleBorder(
-                    borderRadius: .all(.circular(36)),
-                  ),
-                ),
-              ],
-            ),
-          ),
+      builder: (context) {
+        return ValueListenableBuilder(
+          valueListenable: _notationSystemNotifier,
+          builder: (context, notationSystem, _) {
+            return SettingsModal(
+              isDark: widget.themeMode == .dark,
+              notationSystem: notationSystem,
+              onNotationSystemChanged: (notationSystem) {
+                _notationSystemNotifier.value = notationSystem;
+              },
+              onThemeModeChanged: widget.onThemeModeChanged,
+            );
+          },
         );
       },
     );
@@ -155,13 +134,23 @@ class _CircleOfFifthsScreenState extends State<CircleOfFifthsScreen>
                           : null,
                       child: AnimatedBuilder(
                         animation: _modeAnimation,
-                        builder: (context, _) => CircleOfFifthsPainter(
-                          vectors: _vectors,
-                          depthProgress: _modeAnimation.value,
-                          viewPan: _viewPan,
-                          rotationX: _rotationX,
-                          rotationY: _rotationY,
-                        ),
+                        builder: (context, _) {
+                          return ValueListenableBuilder<
+                            StringNotationSystem<Key>
+                          >(
+                            valueListenable: _notationSystemNotifier,
+                            builder: (context, notationSystem, _) {
+                              return CircleOfFifthsPainter(
+                                vectors: _vectors,
+                                depthProgress: _modeAnimation.value,
+                                viewPan: _viewPan,
+                                rotationX: _rotationX,
+                                rotationY: _rotationY,
+                                notationSystem: notationSystem,
+                              );
+                            },
+                          );
+                        },
                       ),
                     ),
                     Positioned(

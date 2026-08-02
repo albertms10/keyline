@@ -14,6 +14,7 @@ class CircleOfFifthsPainter extends StatelessWidget {
     this.rotationX = 0,
     this.rotationY = 0,
     this.viewPan = .zero,
+    this.notationSystem = const GermanKeyNotation(),
     super.key,
   });
 
@@ -32,6 +33,9 @@ class CircleOfFifthsPainter extends StatelessWidget {
   /// Pan offset for the elevated view.
   final Offset viewPan;
 
+  /// The notation system used for [Key].
+  final StringNotationSystem<Key> notationSystem;
+
   @override
   Widget build(BuildContext context) {
     final palette = Theme.of(context).extension<KeylineColors>() ?? .light;
@@ -44,6 +48,7 @@ class CircleOfFifthsPainter extends StatelessWidget {
         rotationY: rotationY,
         viewPan: viewPan,
         palette: palette,
+        notationSystem: notationSystem,
       ),
       child: const SizedBox.expand(),
     );
@@ -58,6 +63,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
     required this.rotationY,
     required this.viewPan,
     required this.palette,
+    required this.notationSystem,
   });
 
   final List<ModulationVector> vectors;
@@ -66,6 +72,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
   final double rotationY;
   final Offset viewPan;
   final KeylineColors palette;
+  final StringNotationSystem<Key> notationSystem;
 
   static final List<Note> majorRingNotes = _majorRingNotes();
 
@@ -267,7 +274,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
 
       _drawText(
         canvas,
-        majorKey.format(const GermanKeyNotation()),
+        majorKey.format(notationSystem),
         projection.project(center + _unit(angle) * outerLabelRadius, 0),
         const TextStyle(
           color: Color(0xff222826),
@@ -278,7 +285,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
       );
       _drawText(
         canvas,
-        minorKey.format(const GermanKeyNotation()),
+        minorKey.format(notationSystem),
         projection.project(center + _unit(angle) * innerLabelRadius, 0),
         const TextStyle(
           color: Color(0xff6a4c7b),
@@ -369,7 +376,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
 
       _drawText(
         canvas,
-        majorKey.format(const GermanKeyNotation()),
+        majorKey.format(notationSystem),
         center + _unit(angle) * outerLabelRadius,
         const TextStyle(
           color: Color(0xff222826),
@@ -380,7 +387,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
       );
       _drawText(
         canvas,
-        minorKey.format(const GermanKeyNotation()),
+        minorKey.format(notationSystem),
         center + _unit(angle) * innerLabelRadius,
         const TextStyle(
           color: Color(0xff6a4c7b),
