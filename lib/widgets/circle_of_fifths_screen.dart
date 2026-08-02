@@ -1,3 +1,5 @@
+import 'dart:developer' show inspect;
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide Interval, Key;
 import 'package:keyline/model.dart';
@@ -65,25 +67,10 @@ class _CircleOfFifthsScreenState extends State<CircleOfFifthsScreen>
     final entries = input
         .split(RegExp(r'[,\-\s]+'))
         .where((token) => token.isNotEmpty)
-        .map(_parseTimedKey)
+        .map(TimedKey.parse)
         .toList(growable: false);
 
     return _TimedSequence(entries);
-  }
-
-  static TimedKey _parseTimedKey(String token) {
-    final separatorIndex = token.lastIndexOf(RegExp('[:=]'));
-    if (separatorIndex < 0) return TimedKey(key: Key.parse(token));
-
-    final duration = double.parse(token.substring(separatorIndex + 1));
-    if (duration <= 0) {
-      throw FormatException('Duration must be positive', token);
-    }
-
-    return TimedKey(
-      key: Key.parse(token.substring(0, separatorIndex)),
-      duration: duration,
-    );
   }
 
   Future<void> _setVisualizationMode(VisualizationMode mode) async {
@@ -165,7 +152,9 @@ class _CircleOfFifthsScreenState extends State<CircleOfFifthsScreen>
                   final _TimedSequence sequence;
                   try {
                     sequence = _parseSequence(value);
-                  } on FormatException {
+                  } on FormatException catch (e) {
+                    inspect(e);
+
                     return;
                   }
                   setState(() {

@@ -6,6 +6,25 @@ class TimedKey {
   /// Creates a timed tonal key.
   const TimedKey({required this.key, this.duration = 1});
 
+  factory TimedKey.parse(String token) {
+    final separatorIndex = token.lastIndexOf(RegExp('[:=]'));
+    if (separatorIndex < 0) return TimedKey(key: Key.parse(token));
+
+    final duration = double.parse(token.substring(separatorIndex + 1));
+    if (duration <= 0) {
+      throw FormatException(
+        'Duration must be greater than zero',
+        token,
+        separatorIndex + 1,
+      );
+    }
+
+    return TimedKey(
+      key: Key.parse(token.substring(0, separatorIndex)),
+      duration: duration,
+    );
+  }
+
   /// The tonal key.
   final Key key;
 
