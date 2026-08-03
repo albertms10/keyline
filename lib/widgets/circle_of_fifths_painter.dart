@@ -22,19 +22,19 @@ enum VisualizationMode {
 class VisualizationDisplayOptions {
   /// Creates display options for optional chart annotations.
   const VisualizationDisplayOptions({
-    this.showMajorLabels = true,
-    this.showMinorLabels = true,
+    this.showAxisKeyLabels = true,
+    this.showEdgeKeyLabels = true,
     this.showVectorLabels = true,
     this.showDurationLabels = true,
     this.showGrid = true,
     this.showLegend = true,
   });
 
-  /// Whether major tonality labels are visible.
-  final bool showMajorLabels;
+  /// Whether key labels on the chart axes/rings are visible.
+  final bool showAxisKeyLabels;
 
-  /// Whether minor tonality labels are visible.
-  final bool showMinorLabels;
+  /// Whether key labels attached to modulation edge endpoints are visible.
+  final bool showEdgeKeyLabels;
 
   /// Whether modulation interval labels are visible.
   final bool showVectorLabels;
@@ -50,16 +50,16 @@ class VisualizationDisplayOptions {
 
   /// Returns a copy with selected fields replaced.
   VisualizationDisplayOptions copyWith({
-    bool? showMajorLabels,
-    bool? showMinorLabels,
+    bool? showAxisKeyLabels,
+    bool? showEdgeKeyLabels,
     bool? showVectorLabels,
     bool? showDurationLabels,
     bool? showGrid,
     bool? showLegend,
   }) {
     return VisualizationDisplayOptions(
-      showMajorLabels: showMajorLabels ?? this.showMajorLabels,
-      showMinorLabels: showMinorLabels ?? this.showMinorLabels,
+      showAxisKeyLabels: showAxisKeyLabels ?? this.showAxisKeyLabels,
+      showEdgeKeyLabels: showEdgeKeyLabels ?? this.showEdgeKeyLabels,
       showVectorLabels: showVectorLabels ?? this.showVectorLabels,
       showDurationLabels: showDurationLabels ?? this.showDurationLabels,
       showGrid: showGrid ?? this.showGrid,
@@ -601,7 +601,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
         );
 
       final labelAlpha = (0.35 + progress * 0.65).clamp(0.0, 1.0);
-      if (displayOptions.showMajorLabels) {
+      if (displayOptions.showAxisKeyLabels) {
         _drawText(
           canvas,
           majorKey.format(notationSystem),
@@ -620,7 +620,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
           ),
         );
       }
-      if (displayOptions.showMinorLabels) {
+      if (displayOptions.showAxisKeyLabels) {
         _drawText(
           canvas,
           minorKey.format(notationSystem),
@@ -788,10 +788,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
         strokePaint,
       );
 
-    final showKeyLabel = isMajor
-        ? displayOptions.showMajorLabels
-        : displayOptions.showMinorLabels;
-    if (showKeyLabel) {
+    if (displayOptions.showEdgeKeyLabels) {
       _drawText(
         canvas,
         key.format(notationSystem),
@@ -1028,7 +1025,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
       final minorKey = majorKey.signature.keys[TonalMode.minor]!;
       final angle = _angleFor(note);
 
-      if (displayOptions.showMajorLabels) {
+      if (displayOptions.showAxisKeyLabels) {
         _drawText(
           canvas,
           majorKey.format(notationSystem),
@@ -1041,7 +1038,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
           backgroundColor: const Color(0xf2fffcf5),
         );
       }
-      if (displayOptions.showMinorLabels) {
+      if (displayOptions.showAxisKeyLabels) {
         _drawText(
           canvas,
           minorKey.format(notationSystem),
@@ -1134,7 +1131,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
       final minorKey = majorKey.signature.keys[TonalMode.minor]!;
       final angle = _angleFor(note);
 
-      if (displayOptions.showMajorLabels) {
+      if (displayOptions.showAxisKeyLabels) {
         _drawText(
           canvas,
           majorKey.format(notationSystem),
@@ -1147,7 +1144,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
           backgroundColor: const Color(0xf2fffcf5),
         );
       }
-      if (displayOptions.showMinorLabels) {
+      if (displayOptions.showAxisKeyLabels) {
         _drawText(
           canvas,
           minorKey.format(notationSystem),
