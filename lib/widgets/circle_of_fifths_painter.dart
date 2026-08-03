@@ -281,6 +281,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
         chartLeft + time / totalDuration * (chartRight - chartLeft);
 
     final gridProgress = ((progress - 0.38) / 0.62).clamp(0.0, 1.0);
+    final scaffoldDistances = _scaffoldFifthsDistances();
     if (displayOptions.showGrid) {
       _drawTimelineGrid(
         canvas,
@@ -292,6 +293,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
         maxDistance,
         yForDistance,
         gridProgress,
+        scaffoldDistances,
       );
     }
     _drawUnfoldingFifthsScaffold(
@@ -301,6 +303,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
       innerRadius,
       labelRadius,
       chartLeft,
+      chartRight,
       yForFifths,
       progress,
     );
@@ -426,6 +429,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
     int maxDistance,
     double Function(int distance) yForDistance,
     double progress,
+    Set<int> scaffoldDistances,
   ) {
     final axisPaint = Paint()
       ..style = .stroke
@@ -438,7 +442,9 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
 
     for (var distance = minDistance; distance <= maxDistance; distance++) {
       final y = yForDistance(distance);
-      canvas.drawLine(Offset(chartLeft, y), Offset(chartRight, y), gridPaint);
+      if (!scaffoldDistances.contains(distance)) {
+        canvas.drawLine(Offset(chartLeft, y), Offset(chartRight, y), gridPaint);
+      }
       _drawText(
         canvas,
         distance == 0 ? 'C / 0' : distance.toDeltaString(),
@@ -474,6 +480,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
     double innerRadius,
     double labelRadius,
     double axisX,
+    double chartRight,
     double Function(double distance) yForFifths,
     double progress,
   ) {
@@ -485,10 +492,11 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
       ..style = .stroke
       ..strokeWidth = 2
       ..color = palette.chartRing;
+    final minorScaffoldAlpha = 1 - progress;
     final minorPaint = Paint()
       ..style = .stroke
       ..strokeWidth = 1.5
-      ..color = palette.chartInnerRing;
+      ..color = palette.chartInnerRing.withValues(alpha: minorScaffoldAlpha);
 
     canvas
       ..drawPath(
@@ -552,13 +560,13 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
       final majorPoint = Offset.lerp(majorCircle, majorAxis, progress)!;
       final minorPoint = Offset.lerp(minorCircle, minorAxis, progress)!;
 
-      final spokeStart = Offset.lerp(
+      final spokeEnd = Offset.lerp(
         center,
-        Offset(axisX, majorPoint.dy),
+        Offset(chartRight, majorPoint.dy),
         progress,
       )!;
       canvas
-        ..drawLine(spokeStart, majorPoint, spokePaint)
+        ..drawLine(majorPoint, spokeEnd, spokePaint)
         ..drawCircle(
           majorPoint,
           _majorAnchorRadius,
@@ -579,7 +587,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
           _minorAnchorRadius,
           Paint()
             ..style = .fill
-            ..color = palette.anchorFill,
+            ..color = palette.anchorFill.withValues(alpha: minorScaffoldAlpha),
         )
         ..drawCircle(
           minorPoint,
@@ -587,7 +595,9 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
           Paint()
             ..style = .stroke
             ..strokeWidth = 1.75
-            ..color = palette.secondaryText,
+            ..color = palette.secondaryText.withValues(
+              alpha: minorScaffoldAlpha,
+            ),
         );
 
       final labelAlpha = (0.35 + progress * 0.65).clamp(0.0, 1.0);
@@ -620,12 +630,14 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
             progress,
           )!,
           TextStyle(
-            color: palette.secondaryText.withValues(alpha: labelAlpha),
+            color: palette.secondaryText.withValues(
+              alpha: labelAlpha * minorScaffoldAlpha,
+            ),
             fontSize: 13 - progress,
             fontWeight: .w600,
           ),
           backgroundColor: palette.labelBackground.withValues(
-            alpha: labelAlpha,
+            alpha: labelAlpha * minorScaffoldAlpha,
           ),
         );
       }
@@ -659,6 +671,11 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
 
     return path;
   }
+
+  Set<int> _scaffoldFifthsDistances() => {
+    for (final note in majorRingNotes)
+      note.major.signature.keys[TonalMode.major]!.signature.distance!,
+  };
 
   void _drawTimelineVector(
     Canvas canvas,
