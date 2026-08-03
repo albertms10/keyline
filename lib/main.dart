@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart' hide Interval, Key;
 import 'package:keyline/colors.dart';
+import 'package:keyline/query_parameters.dart';
 import 'package:keyline/widgets/circle_of_fifths_screen.dart';
 import 'package:web/web.dart';
 
-Map<String, String>? initialQueryParameters;
+late QueryParameters queryParameters;
 
 void main() {
-  initialQueryParameters = Uri.parse(window.location.href).queryParameters;
+  queryParameters = QueryParameters.fromUri(.parse(window.location.href));
   runApp(const CircleOfFifthsApp());
 }
 
@@ -45,7 +46,7 @@ class _CircleOfFifthsAppState extends State<CircleOfFifthsApp> {
       theme: _buildTheme(.light),
       darkTheme: _buildTheme(.dark),
       home: CircleOfFifthsScreen(
-        initialVectors: initialQueryParameters?['k'],
+        initialVectors: queryParameters.keys,
         themeMode: _themeMode,
         onThemeModeChanged: (mode) {
           setState(() {
