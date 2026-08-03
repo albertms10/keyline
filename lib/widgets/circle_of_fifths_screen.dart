@@ -6,7 +6,6 @@ import 'package:keyline/model.dart';
 import 'package:keyline/widgets/circle_of_fifths_painter.dart';
 import 'package:keyline/widgets/screenshot_utils.dart';
 import 'package:keyline/widgets/settings_modal.dart';
-import 'package:music_notes/music_notes.dart';
 
 class CircleOfFifthsScreen extends StatefulWidget {
   const CircleOfFifthsScreen({
@@ -54,8 +53,7 @@ class _CircleOfFifthsScreenState extends State<CircleOfFifthsScreen>
     widget.initialVectors ?? _defaultInput,
   );
   VisualizationMode _visualizationMode = .circle2d;
-  late final ValueNotifier<StringNotationSystem<Key>> _notationSystemNotifier =
-      .new(const GermanKeyNotation());
+  KeyNotationChoice _notationChoice = KeyNotationChoice.german;
   late final ValueNotifier<VisualizationDisplayOptions>
   _displayOptionsNotifier = .new(const VisualizationDisplayOptions());
   final GlobalKey _chartCaptureKey = GlobalKey();
@@ -99,7 +97,6 @@ class _CircleOfFifthsScreenState extends State<CircleOfFifthsScreen>
     _controller.dispose();
     _modeController.dispose();
     _timelineController.dispose();
-    _notationSystemNotifier.dispose();
     _displayOptionsNotifier.dispose();
     super.dispose();
   }
@@ -110,24 +107,21 @@ class _CircleOfFifthsScreenState extends State<CircleOfFifthsScreen>
       isScrollControlled: true,
       builder: (context) {
         return ValueListenableBuilder(
-          valueListenable: _notationSystemNotifier,
-          builder: (context, notationSystem, _) {
-            return ValueListenableBuilder(
-              valueListenable: _displayOptionsNotifier,
-              builder: (context, displayOptions, _) {
-                return SettingsModal(
-                  isDark: widget.themeMode == .dark,
-                  notationSystem: notationSystem,
-                  displayOptions: displayOptions,
-                  onNotationSystemChanged: (notationSystem) {
-                    _notationSystemNotifier.value = notationSystem;
-                  },
-                  onDisplayOptionsChanged: (displayOptions) {
-                    _displayOptionsNotifier.value = displayOptions;
-                  },
-                  onThemeModeChanged: widget.onThemeModeChanged,
-                );
+          valueListenable: _displayOptionsNotifier,
+          builder: (context, displayOptions, _) {
+            return SettingsModal(
+              isDark: widget.themeMode == .dark,
+              notationChoice: _notationChoice,
+              displayOptions: displayOptions,
+              onNotationChoiceChanged: (notationChoice) {
+                setState(() {
+                  _notationChoice = notationChoice;
+                });
               },
+              onDisplayOptionsChanged: (displayOptions) {
+                _displayOptionsNotifier.value = displayOptions;
+              },
+              onThemeModeChanged: widget.onThemeModeChanged,
             );
           },
         );
@@ -211,32 +205,20 @@ class _CircleOfFifthsScreenState extends State<CircleOfFifthsScreen>
                           animation: .merge([
                             _modeAnimation,
                             _timelineAnimation,
+                            _displayOptionsNotifier,
                           ]),
                           builder: (context, _) {
-                            return ValueListenableBuilder<
-                              StringNotationSystem<Key>
-                            >(
-                              valueListenable: _notationSystemNotifier,
-                              builder: (context, notationSystem, _) {
-                                return ValueListenableBuilder(
-                                  valueListenable: _displayOptionsNotifier,
-                                  builder: (context, displayOptions, _) {
-                                    return CircleOfFifthsPainter(
-                                      vectors: _sequence.vectors,
-                                      timelineKeys: _sequence.keys,
-                                      visualizationMode: _visualizationMode,
-                                      depthProgress: _modeAnimation.value,
-                                      timelineProgress:
-                                          _timelineAnimation.value,
-                                      viewPan: _viewPan,
-                                      rotationX: _rotationX,
-                                      rotationY: _rotationY,
-                                      notationSystem: notationSystem,
-                                      displayOptions: displayOptions,
-                                    );
-                                  },
-                                );
-                              },
+                            return CircleOfFifthsPainter(
+                              vectors: _sequence.vectors,
+                              timelineKeys: _sequence.keys,
+                              visualizationMode: _visualizationMode,
+                              depthProgress: _modeAnimation.value,
+                              timelineProgress: _timelineAnimation.value,
+                              viewPan: _viewPan,
+                              rotationX: _rotationX,
+                              rotationY: _rotationY,
+                              notationSystem: _notationChoice.notationSystem,
+                              displayOptions: _displayOptionsNotifier.value,
                             );
                           },
                         ),

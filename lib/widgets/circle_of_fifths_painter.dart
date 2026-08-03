@@ -1599,6 +1599,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
       oldDelegate.timelineKeys != timelineKeys ||
       oldDelegate.visualizationMode != visualizationMode ||
       oldDelegate.displayOptions != displayOptions ||
+      oldDelegate.notationSystem != notationSystem ||
       oldDelegate.depthProgress != depthProgress ||
       oldDelegate.timelineProgress != timelineProgress ||
       oldDelegate.rotationX != rotationX ||

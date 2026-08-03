@@ -5,19 +5,19 @@ import 'package:music_notes/music_notes.dart';
 class SettingsModal extends StatefulWidget {
   const SettingsModal({
     required this.isDark,
-    required this.notationSystem,
+    required this.notationChoice,
     required this.displayOptions,
     this.onThemeModeChanged,
-    this.onNotationSystemChanged,
+    this.onNotationChoiceChanged,
     this.onDisplayOptionsChanged,
     super.key,
   });
 
   final bool isDark;
-  final StringNotationSystem<Key> notationSystem;
+  final KeyNotationChoice notationChoice;
   final VisualizationDisplayOptions displayOptions;
   final ValueChanged<ThemeMode>? onThemeModeChanged;
-  final ValueChanged<StringNotationSystem<Key>>? onNotationSystemChanged;
+  final ValueChanged<KeyNotationChoice>? onNotationChoiceChanged;
   final ValueChanged<VisualizationDisplayOptions>? onDisplayOptionsChanged;
 
   @override
@@ -26,14 +26,14 @@ class SettingsModal extends StatefulWidget {
 
 class _SettingsModalState extends State<SettingsModal> {
   late bool _isDark = widget.isDark;
-  late StringNotationSystem<Key> _notationSystem = widget.notationSystem;
+  late KeyNotationChoice _notationChoice = widget.notationChoice;
   late VisualizationDisplayOptions _displayOptions = widget.displayOptions;
 
   @override
   void didUpdateWidget(SettingsModal oldWidget) {
     super.didUpdateWidget(oldWidget);
     _isDark = widget.isDark;
-    _notationSystem = widget.notationSystem;
+    _notationChoice = widget.notationChoice;
     _displayOptions = widget.displayOptions;
   }
 
@@ -83,29 +83,30 @@ class _SettingsModalState extends State<SettingsModal> {
             const SizedBox(height: 8),
             ListTile(
               title: const Text('Key notation'),
-              trailing: SegmentedButton<StringNotationSystem<Key>>(
+              trailing: SegmentedButton<KeyNotationChoice>(
                 showSelectedIcon: false,
                 segments: const [
                   ButtonSegment(
-                    value: EnglishKeyNotation.symbol(),
+                    value: KeyNotationChoice.english,
                     label: Text('English'),
                   ),
                   ButtonSegment(
-                    value: GermanKeyNotation(),
+                    value: KeyNotationChoice.german,
                     label: Text('German'),
                   ),
                   ButtonSegment(
-                    value: RomanceKeyNotation.symbol(),
+                    value: KeyNotationChoice.romance,
                     label: Text('Romance'),
                   ),
                 ],
-                selected: {_notationSystem},
+                selected: {_notationChoice},
                 onSelectionChanged: (selection) {
                   if (selection.isEmpty) return;
+                  final choice = selection.first;
                   setState(() {
-                    _notationSystem = selection.first;
+                    _notationChoice = choice;
                   });
-                  widget.onNotationSystemChanged?.call(selection.first);
+                  widget.onNotationChoiceChanged?.call(choice);
                 },
               ),
             ),
@@ -171,6 +172,20 @@ class _SettingsModalState extends State<SettingsModal> {
         ),
       ),
     );
+  }
+}
+
+enum KeyNotationChoice {
+  english,
+  german,
+  romance;
+
+  StringNotationSystem<Key> get notationSystem {
+    return switch (this) {
+      english => const EnglishKeyNotation.symbol(),
+      german => const GermanKeyNotation(),
+      romance => const RomanceKeyNotation.symbol(),
+    };
   }
 }
 
