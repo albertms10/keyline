@@ -260,7 +260,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
     if (chartRight <= chartLeft || chartBottom <= chartTop) return;
 
     final distances = [
-      for (final entry in entries) entry.key.signature.distance!,
+      for (final entry in entries) entry.key.note.circleOfFifthsDistance,
       for (final note in majorRingNotes) note.major.signature.distance!,
     ];
     final minDistance = math.min(-6, distances.reduce(math.min));
@@ -319,7 +319,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
       );
       final timelinePosition = Offset(
         xForTime(currentTime),
-        yForDistance(entry.key.signature.distance!),
+        yForDistance(entry.key.note.circleOfFifthsDistance),
       );
       points.add(
         _TimelinePoint(
@@ -340,7 +340,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
       );
       final timelineEnd = Offset(
         xForTime(point.time + point.entry.duration),
-        yForDistance(point.entry.key.signature.distance!),
+        yForDistance(point.entry.key.note.circleOfFifthsDistance),
       );
       final holdEnd = Offset(
         Offset.lerp(circularEnd, timelineEnd, progress)!.dx,
@@ -370,7 +370,7 @@ class _CircleOfFifthsCustomPainter extends CustomPainter {
       );
       final timelineStart = Offset(
         xForTime(from.time + from.entry.duration),
-        yForDistance(from.entry.key.signature.distance!),
+        yForDistance(from.entry.key.note.circleOfFifthsDistance),
       );
       final timelineTip = Offset(timelineStart.dx, to.position.dy);
       final start = Offset.lerp(circularPath.start, timelineStart, progress)!;

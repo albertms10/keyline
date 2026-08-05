@@ -30,11 +30,10 @@ class ModulationVector {
   };
 
   /// Whether this vector is rendered as a dashed arrow.
-  bool get dashed => to.signature.distance! - from.signature.distance! < 0;
+  bool get dashed => to.relationshipWith(from).relationship == .indirect;
 
   /// The vector label.
-  String get label =>
-      (to.signature.distance! - from.signature.distance!).toDeltaString();
+  String get label => from.note.fifthsDistanceWith(to.note).toDeltaString();
 }
 
 extension KeyModulationVector on Key {
